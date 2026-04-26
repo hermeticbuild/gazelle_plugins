@@ -1,0 +1,15 @@
+load("//tools:stubs.bzl", "ts_project")
+
+ts_project(
+    name = "lib",
+    srcs = ["stats.ts"],
+    composite = True,
+    declaration = True,
+    references = ["//packages/core/src:lib"],
+    source_map = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/npm:@types/lodash",
+        "//tools/npm:lodash",
+    ],
+)

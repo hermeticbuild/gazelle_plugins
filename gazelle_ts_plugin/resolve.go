@@ -188,11 +188,15 @@ func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *r
 			if testPath == from.Pkg {
 				return ""
 			}
+			// Use the actual rule label from the index — it carries the
+			// resolved rule name, which may not match the directory basename
+			// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
+			// //packages/foo).
 			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath}, languageName); len(found) > 0 {
-				return "//" + testPath
+				return found[0].Label.Rel(from.Repo, from.Pkg).String()
 			}
 			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath + "/*"}, languageName); len(found) > 0 {
-				return "//" + testPath
+				return found[0].Label.Rel(from.Repo, from.Pkg).String()
 			}
 		}
 	}

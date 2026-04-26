@@ -1,0 +1,16 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# Re-route the stock kinds the plugin emits to local stubs so the example
+# can `bazel build //...` without a full rules_ts/rules_js setup. Real users
+# point map_kind at @aspect_rules_ts // @aspect_rules_js (or their own macros).
+# gazelle:map_kind ts_project ts_project //tools:stubs.bzl
+# gazelle:map_kind js_test    js_test    //tools:stubs.bzl
+
+# Tell the plugin how to resolve npm packages: this example doesn't actually
+# wire pnpm, so we send everything to a placeholder npm_stubs filegroup.
+# gazelle:ts_npm_link_pattern //tools/npm:{pkg}
+
+gazelle(
+    name = "gazelle",
+    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+)

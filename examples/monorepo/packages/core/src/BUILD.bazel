@@ -1,0 +1,14 @@
+load("//tools:stubs.bzl", "ts_project")
+
+ts_project(
+    name = "lib",
+    srcs = ["index.ts"],
+    composite = True,
+    declaration = True,
+    source_map = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/npm:@types/node",
+        "//tools/npm:zod",
+    ],
+)

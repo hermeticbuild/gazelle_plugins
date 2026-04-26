@@ -1,0 +1,19 @@
+module(
+    name = "monorepo_example",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "gazelle", version = "0.50.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+
+bazel_dep(name = "gazelle_plugins", version = "0.0.0")
+local_path_override(
+    module_name = "gazelle_plugins",
+    path = "../..",
+)
+
+# We don't pull in aspect_rules_ts / aspect_rules_js here — the example uses
+# stubs in //tools:stubs.bzl so it can `bazel build //...` without a full
+# pnpm + tsc setup. Real users would `bazel_dep(name = "aspect_rules_ts")`
+# instead and either drop the map_kind directives in //BUILD.bazel or point
+# them at their own macros.
