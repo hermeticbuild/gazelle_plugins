@@ -1,6 +1,7 @@
 {
   "name": "@myrepo_generated/queries",
   "version": "0.0.0",
+  "license": "MIT",
   "main": "generated.js",
   "types": "generated.d.ts"
 }

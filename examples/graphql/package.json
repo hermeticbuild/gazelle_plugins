@@ -2,6 +2,7 @@
   "name": "graphql-example",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "imports": {
     "#packages/*": "./packages/*"
   },
