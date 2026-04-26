@@ -40,7 +40,7 @@ flowchart LR
     A["BUILD.bazel<br/>(directives)"] --> CFG["Configure<br/>(per directory)"]
     F["*.ts / *.tsx files"] --> GEN["GenerateRules"]
     CFG --> GEN
-    SUB["import-extractor<br/>(Rust subprocess)"] -.parses .ts.-> GEN
+    SUB["import-extractor<br/>(Rust subprocess)"] -. parses TS .-> GEN
     GEN --> RULES["ts_project + js_test rules<br/>+ ImportData"]
     GEN --> IDX["RuleIndex"]
     RULES --> RES["Resolve"]
