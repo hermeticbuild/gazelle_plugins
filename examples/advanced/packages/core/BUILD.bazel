@@ -9,8 +9,5 @@ myorg_ts_library(
     source_map = True,
     tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
-    deps = [
-        "//:node_modules/@types/node",
-        "//:node_modules/zod",
-    ],
+    deps = ["//:node_modules/@types/node"],
 )

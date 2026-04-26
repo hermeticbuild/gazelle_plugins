@@ -23,8 +23,9 @@ const (
 	directiveTranspiler      = "ts_transpiler"
 	directiveNpmLinkPattern  = "ts_npm_link_pattern"
 	directiveGeneratedPackage = "ts_generated_package"
-	directiveTestData        = "ts_test_data"
-	directiveTestEntryPoint  = "ts_test_entry_point"
+	directiveTestData           = "ts_test_data"
+	directiveTestEntryPoint     = "ts_test_entry_point"
+	directiveTestEntryPointAuto = "ts_test_entry_point_auto"
 )
 
 // RegisterFlags is a no-op — all configuration is via BUILD-file directives.
@@ -52,6 +53,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveGeneratedPackage,
 		directiveTestData,
 		directiveTestEntryPoint,
+		directiveTestEntryPointAuto,
 	}
 }
 
@@ -144,6 +146,8 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		}
 	case directiveTestEntryPoint:
 		cfg.testEntryPoint = val
+	case directiveTestEntryPointAuto:
+		cfg.testEntryPointAuto = parseBool(val, cfg.testEntryPointAuto)
 	}
 }
 

@@ -8,7 +8,7 @@ A self-contained Bazel workspace that exercises `gazelle_ts_plugin` against a re
 .
 ├── apps/
 │   ├── web/       # browser app — React + react-query + cross-package refs
-│   └── cli/       # node CLI — node:fs + zod + cross-package refs + synthetic pkg
+│   └── cli/       # node CLI — node:fs + cross-package refs + synthetic pkg + virtual module
 └── packages/
     ├── core/                    # base package, no internal deps
     ├── synthetic/               # genrule-built npm_package + npm_link_package

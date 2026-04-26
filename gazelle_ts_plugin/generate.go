@@ -97,9 +97,14 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			data = append(data, ":"+libName)
 		}
 		r.SetAttr("data", data)
+		// entry_point is required for stock js_test (Node needs a single
+		// script to run). Test runners that auto-discover (vitest, jest,
+		// mocha) don't need it — set ts_test_entry_point_auto=false to
+		// suppress the auto-pick when you've mapped the kind to such a
+		// runner.
 		if cfg.testEntryPoint != "" {
 			r.SetAttr("entry_point", cfg.testEntryPoint)
-		} else {
+		} else if cfg.testEntryPointAuto {
 			for _, s := range testSrcs {
 				if strings.HasSuffix(s, ".test.ts") || strings.HasSuffix(s, ".test.tsx") {
 					r.SetAttr("entry_point", s)

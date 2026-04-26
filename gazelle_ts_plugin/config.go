@@ -77,6 +77,14 @@ type tsConfig struct {
 
 	// testEntryPoint, when set, is emitted as the test rule's `entry_point`.
 	testEntryPoint string
+
+	// testEntryPointAuto controls whether GenerateRules auto-picks a default
+	// entry_point (the first sorted *.test.ts*) when testEntryPoint isn't
+	// set. Default true. Turn off when the test kind is mapped (via
+	// # gazelle:map_kind) or overridden (via ts_test_kind) to a runner that
+	// auto-discovers tests — vitest_test, jest_test, mocha_test — where an
+	// emitted entry_point is meaningless or wrong.
+	testEntryPointAuto bool
 }
 
 // newTsConfig returns a config populated with all defaults.
@@ -91,8 +99,9 @@ func newTsConfig() *tsConfig {
 		testPatterns:      append([]string(nil), defaultTestPatterns...),
 		extensions:        append([]string(nil), defaultExtensions...),
 		projectReferences: defaultProjectReferences,
-		npmLinkPattern:    defaultNpmLinkPattern,
-		generatedPackages: make(map[string]string),
+		npmLinkPattern:     defaultNpmLinkPattern,
+		generatedPackages:  make(map[string]string),
+		testEntryPointAuto: true,
 	}
 }
 
