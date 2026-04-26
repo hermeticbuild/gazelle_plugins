@@ -1,0 +1,13 @@
+# examples
+
+Each subdirectory is a self-contained Bazel workspace exercising `gazelle_ts_plugin` against a different scenario. They escalate in complexity:
+
+| Example | What it shows |
+|---|---|
+| [`basic/`](basic) | One TS package, third-party npm deps (`lodash-es`, `react-intl`), a `.tsx` file, a smoke test. **No internal cross-package references.** Smallest possible useful setup. |
+| [`composite/`](composite) | Multiple packages with cross-package imports via `package.json` `imports` (`#packages/*`). TS project references via `composite = True`. |
+| [`advanced/`](advanced) | Everything in `composite` plus a Bazel-generated synthetic npm package (genrule + `npm_package` + `npm_link_package`) wired through the `# gazelle:ts_generated_package` directive. |
+
+Each workspace points its `MODULE.bazel` at the parent `gazelle_plugins` repo via `local_path_override`, so changes to the plugin's Go source apply on the next `bazel run //:gazelle` without any release dance.
+
+CI runs `bazel test //...` and a `gazelle update -mode=diff` idempotency check in every example on linux-x86_64 + macos-arm64.

@@ -1,0 +1,59 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
+load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+# Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
+npm_link_all_packages(name = "node_modules")
+
+# Shared tsconfig — referenced by every ts_project via `ts_tsconfig`.
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+# gazelle:ts_tsconfig //:tsconfig
+
+gazelle(
+    name = "gazelle",
+    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+)
+
+ts_project(
+    name = "lib",
+    srcs = [
+        "app.ts",
+        "badge.tsx",
+    ],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/lodash-es",
+        "//:node_modules/@types/node",
+        "//:node_modules/@types/react",
+        "//:node_modules/lodash-es",
+        "//:node_modules/react",
+        "//:node_modules/react-intl",
+    ],
+)
+
+js_test(
+    name = "test",
+    data = [
+        "app.test.ts",
+        ":lib",
+        "//:node_modules/@types/lodash-es",
+        "//:node_modules/@types/node",
+        "//:node_modules/@types/react",
+        "//:node_modules/lodash-es",
+        "//:node_modules/react",
+        "//:node_modules/react-intl",
+    ],
+    entry_point = "app.test.ts",
+)
