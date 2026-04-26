@@ -1,0 +1,52 @@
+load("@gazelle//:def.bzl", "gazelle_binary")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gazelle_ts_plugin",
+    srcs = [
+        "config.go",
+        "configure.go",
+        "fix.go",
+        "generate.go",
+        "imports.go",
+        "kinds.go",
+        "language.go",
+        "lifecycle.go",
+        "parser.go",
+        "parser_oxc.go",
+        "resolve.go",
+    ],
+    data = ["//crates/import-extractor:bin"],
+    importpath = "github.com/hermeticbuild/gazelle_plugins/gazelle_ts_plugin",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gazelle_ts_plugin/proto:import_extractor_go_proto",
+        "@gazelle//config",
+        "@gazelle//label",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//rule",
+        "@org_golang_google_protobuf//proto",
+        "@rules_go//go/runfiles",
+    ],
+)
+
+go_test(
+    name = "gazelle_ts_plugin_test",
+    srcs = [
+        "config_test.go",
+        "generate_test.go",
+        "resolve_test.go",
+    ],
+    embed = [":gazelle_ts_plugin"],
+    deps = [
+        "@gazelle//rule",
+    ],
+)
+
+gazelle_binary(
+    name = "gazelle_ts",
+    languages = [":gazelle_ts_plugin"],
+    visibility = ["//visibility:public"],
+)
