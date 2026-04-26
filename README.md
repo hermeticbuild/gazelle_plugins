@@ -10,8 +10,7 @@ Built with [`rules_rs`](https://github.com/dzbarsky/rules_rs) on Bazel 9 (bzlmod
 
 ```
 crates/
-├── import-extractor/        # Rust subprocess: TS + Python import extraction
-└── import-extractor-proto/  # Wire-protocol protobuf schema
+└── import-extractor/        # Rust subprocess (TS + Python) and its wire-protocol .proto
 ```
 
 ## Build

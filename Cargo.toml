@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "crates/import-extractor",
-    "crates/import-extractor-proto",
 ]
 
 [workspace.package]
@@ -28,10 +27,7 @@ oxc_span = "0.127"
 # generates against (its bundled rrprd repo). Mismatched versions produce
 # trait-path conflicts at link time.
 prost = "=0.13.1"
-prost-build = "=0.13.1"
 prost-types = "=0.13.1"
-tonic = "0.14"
-tonic-prost = "0.14"
 
 # Shared
 rayon = "1.10"

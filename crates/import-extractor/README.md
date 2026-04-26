@@ -13,7 +13,7 @@ Spawning per-file would dominate runtime. The binary instead stays alive and pro
 
 ## Wire protocol
 
-Each frame is a 4-byte big-endian `u32` length followed by a `Request` or `Response` protobuf payload. See [`../import-extractor-proto/proto/message.proto`](../import-extractor-proto/proto/message.proto) for the full schema.
+Each frame is a 4-byte big-endian `u32` length followed by a `Request` or `Response` protobuf payload. See [`proto/message.proto`](proto/message.proto) for the full schema.
 
 ```mermaid
 flowchart LR
@@ -43,30 +43,27 @@ The binary reads frames from stdin, dispatches on `Request.data` (`ts_query` or 
 ## Layout
 
 ```
+proto/
+└── message.proto       # wire-protocol schema (built via rust_prost_library)
 src/
-├── lib.rs       # re-exports python and ts modules
-├── main.rs      # stdin/stdout loop + dispatch
-├── ts.rs        # oxc-based TypeScript import extractor
-└── python.rs    # ruff-based Python import extractor
+├── lib.rs              # re-exports python, ts, wire modules
+├── main.rs             # stdin/stdout I/O pump → wire::process_stream
+├── wire.rs             # frame loop + request dispatch (testable)
+├── ts.rs               # oxc-based TypeScript import extractor
+└── python.rs           # ruff-based Python import extractor
+tests/
+├── integration.rs      # end-to-end stream tests
+└── fixtures/           # realistic .ts and .py samples
 ```
 
 ## Build
-
-With Bazel:
 
 ```
 bazel build //crates/import-extractor:bin
 bazel test  //crates/import-extractor:test
 ```
 
-With Cargo (after `cargo generate-lockfile`):
-
-```
-cargo build --release -p import-extractor
-cargo test  -p import-extractor
-```
-
-The Bazel build is the source of truth; the Cargo manifest is kept working so `rust-analyzer` and `cargo test` stay usable for development.
+The proto codegen runs through `rust_prost_library`, so Bazel is the only supported build path for the binary. The library targets (`python`, `ts`) compile under cargo for `rust-analyzer` use.
 
 ## Fixtures
 
@@ -77,4 +74,4 @@ Realistic sample inputs live in [`tests/fixtures/`](tests/fixtures):
 
 ## Performance notes
 
-`Cargo.toml` sets `panic = "abort"` and `codegen-units = 1` for the release profile. The first reduces binary size and removes unwind tables; the second improves cross-crate inlining at the cost of slower compile times. Both meaningfully help startup latency for the gazelle plugin's hot path.
+The workspace `[profile.release]` sets `panic = "abort"` and `codegen-units = 1`, and Bazel's `--config=opt` mirrors them via `@rules_rust//:extra_rustc_flags=-Ccodegen-units=1,-Cpanic=abort,-Cstrip=symbols`. The first reduces binary size and removes unwind tables; the second improves cross-crate inlining at the cost of slower compile times. Both meaningfully help startup latency for the gazelle plugin's hot path.
