@@ -17,7 +17,7 @@ import (
 // choices, or custom args survive gazelle runs.
 //
 // Note that we always emit the stock kinds (ts_project, js_test) here. When
-// the consumer applies `# gazelle:map_kind ts_project formatjs_library …`,
+// the consumer applies `# gazelle:map_kind ts_project myrepo_ts_library …`,
 // gazelle rewrites the kind on disk but still uses these merge rules.
 var tsKinds = map[string]rule.KindInfo{
 	defaultLibraryKind: {

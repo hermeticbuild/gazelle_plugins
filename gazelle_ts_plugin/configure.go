@@ -124,7 +124,7 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 			cfg.npmLinkPattern = val
 		}
 	case directiveSubpathImport:
-		// Format: `<pattern>=<target>`, e.g. `@formatjs_generated/*=//:node_modules/@formatjs_generated/*`.
+		// Format: `<pattern>=<target>`, e.g. `@myrepo_generated/*=//:node_modules/@myrepo_generated/*`.
 		if eq := strings.Index(val, "="); eq > 0 {
 			pattern := strings.TrimSpace(val[:eq])
 			target := strings.TrimSpace(val[eq+1:])

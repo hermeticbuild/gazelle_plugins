@@ -59,7 +59,7 @@ type tsConfig struct {
 
 	// subpathOverrides extends the package.json `imports` map with directive-
 	// supplied entries. Pattern → target replacement (e.g.
-	// `@formatjs_generated/*` → `//:node_modules/@formatjs_generated/*`).
+	// `@myrepo_generated/*` → `//:node_modules/@myrepo_generated/*`).
 	subpathOverrides map[string]string
 
 	// testData is added to every emitted test rule's `data` attr.

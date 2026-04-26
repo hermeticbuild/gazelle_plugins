@@ -95,10 +95,10 @@ func TestApplyDirective_SubpathImport(t *testing.T) {
 	cfg := newTsConfig()
 	applyDirective(cfg, rule.Directive{
 		Key:   directiveSubpathImport,
-		Value: "@formatjs_generated/*=//:node_modules/@formatjs_generated/*",
+		Value: "@myrepo_generated/*=//:node_modules/@myrepo_generated/*",
 	})
-	got := cfg.subpathOverrides["@formatjs_generated/*"]
-	if got != "//:node_modules/@formatjs_generated/*" {
+	got := cfg.subpathOverrides["@myrepo_generated/*"]
+	if got != "//:node_modules/@myrepo_generated/*" {
 		t.Errorf("subpath override = %q", got)
 	}
 

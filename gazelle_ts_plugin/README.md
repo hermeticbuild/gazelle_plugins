@@ -8,8 +8,8 @@ A Gazelle language extension that generates and maintains BUILD files for TypeSc
 If you have your own TypeScript / test macros, use Gazelle's `# gazelle:map_kind` directive to swap the emitted kinds:
 
 ```starlark
-# gazelle:map_kind ts_project formatjs_library //tools:compile.bzl
-# gazelle:map_kind js_test    formatjs_test    //tools:test.bzl
+# gazelle:map_kind ts_project myrepo_ts_library //tools:ts.bzl
+# gazelle:map_kind js_test    myrepo_ts_test    //tools:ts.bzl
 ```
 
 The plugin is the same; only the kind name and load path on the resulting rule change. Note that `map_kind` doesn't rewrite attribute names — your macro must accept the attrs we set (see [Generated attrs](#generated-attrs) below).
@@ -53,8 +53,8 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 ### `ts_subpath_import` examples
 
 ```
-# Map @formatjs_generated/* directly to a Bazel label
-# gazelle:ts_subpath_import @formatjs_generated/*=//:node_modules/@formatjs_generated/*
+# Map @myrepo_generated/* directly to a Bazel label
+# gazelle:ts_subpath_import @myrepo_generated/*=//:node_modules/@myrepo_generated/*
 
 # Map a Node.js subpath import (#packages/*) to a workspace path
 # gazelle:ts_subpath_import #packages/*=./packages/*

@@ -8,8 +8,8 @@
 // Callsites that want their own macros wrap the generated kinds via
 // # gazelle:map_kind, e.g.
 //
-//	# gazelle:map_kind ts_project formatjs_library //tools:compile.bzl
-//	# gazelle:map_kind js_test    formatjs_test    //tools:test.bzl
+//	# gazelle:map_kind ts_project myrepo_ts_library //tools:ts.bzl
+//	# gazelle:map_kind js_test    myrepo_ts_test    //tools:ts.bzl
 //
 // The plugin operates in Gazelle's three-phase pipeline:
 //
