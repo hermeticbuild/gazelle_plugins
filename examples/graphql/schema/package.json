@@ -1,0 +1,6 @@
+{
+  "name": "@myrepo_generated/queries",
+  "version": "0.0.0",
+  "main": "generated.js",
+  "types": "generated.d.ts"
+}

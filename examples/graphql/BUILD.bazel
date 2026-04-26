@@ -1,0 +1,34 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+npm_link_all_packages(name = "node_modules")
+
+# Link the codegen output as @myrepo_generated/queries inside //:node_modules
+# so apps can `import` it like any pnpm-managed package.
+npm_link_package(
+    name = "node_modules/@myrepo_generated/queries",
+    src = "//schema:queries",
+    package = "@myrepo_generated/queries",
+    visibility = ["//visibility:public"],
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+# gazelle:ts_tsconfig //:tsconfig
+
+# Route imports of @myrepo_generated/* at the linker entries above. The
+# resolver wouldn't otherwise see `@myrepo_generated/queries` because it's
+# not in package.json.
+# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+
+gazelle(
+    name = "gazelle",
+    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+)

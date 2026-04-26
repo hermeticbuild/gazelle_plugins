@@ -1,0 +1,19 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+ts_project(
+    name = "web",
+    srcs = ["UserCard.tsx"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@myrepo_generated/queries",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+        "//:node_modules/react-intl",
+        "//packages/core",
+    ],
+)
