@@ -120,12 +120,15 @@ func (l *tsLang) resolveImportsToDeps(
 			continue
 		}
 
-		// First consult gazelle's resolve directive index so callsites can
-		// route arbitrary imports with `# gazelle:resolve ts <import> <label>`.
-		// This wins over every other resolution path — useful for one-off
-		// imports the plugin has no built-in heuristic for.
-		if found := ix.FindRulesByImportWithConfig(c, resolve.ImportSpec{Lang: languageName, Imp: path}, languageName); len(found) > 0 {
-			result.external = append(result.external, found[0].Label.Rel(from.Repo, from.Pkg).String())
+		// First consult gazelle's resolve directive overrides so callsites
+		// can route arbitrary imports with `# gazelle:resolve ts <import>
+		// <label>`. Note: gazelle's RuleIndex.FindRulesByImportWithConfig
+		// does NOT check overrides on its own (it only walks the rule
+		// index and CrossResolvers), so we have to call FindRuleWithOverride
+		// explicitly. Overrides win over every other resolution path.
+		spec := resolve.ImportSpec{Lang: languageName, Imp: path}
+		if dep, ok := resolve.FindRuleWithOverride(c, spec, languageName); ok {
+			result.external = append(result.external, dep.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 

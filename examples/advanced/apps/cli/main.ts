@@ -3,6 +3,7 @@
 import { argv } from 'node:process';
 import { readFileSync } from 'node:fs';
 import { greeting } from '@myrepo_generated/synthetic';
+import { banner } from 'mystery:banner';
 import { statsForUsers } from '#packages/utils/math/deep/stats.js';
 import { userSchema } from '#packages/core/index.js';
 
@@ -11,6 +12,7 @@ function main(): void {
   const raw = JSON.parse(readFileSync(file, 'utf8'));
   const users = raw.map((u: unknown) => userSchema.parse(u));
   const stats = statsForUsers(users);
+  console.log(banner);
   console.log(greeting('user'));
   console.log(JSON.stringify(stats, null, 2));
 }

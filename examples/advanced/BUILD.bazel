@@ -34,6 +34,16 @@ ts_config(
 # Bazel label so imports like `@myrepo_generated/synthetic` resolve correctly.
 # gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
 
+# Native gazelle directive — route a virtual import string to a Bazel label.
+# gazelle:resolve ts ts mystery:banner //tools:mystery
+
+# Swap the stock kinds the plugin emits to project wrappers in //tools:ts.bzl.
+# Gazelle keeps emitting `ts_project` / `js_test` shapes; map_kind rewrites
+# the kind name + load path on disk. The wrappers (myorg_ts_library /
+# vitest_test) accept the same attrs and forward to the stock rules.
+# gazelle:map_kind ts_project myorg_ts_library //tools:ts.bzl
+# gazelle:map_kind js_test    vitest_test     //tools:ts.bzl
+
 gazelle(
     name = "gazelle",
     gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
