@@ -50,6 +50,16 @@ bazel test //...
 | [`tsconfig.json`](tsconfig.json) | `composite`, `declaration`, `declarationMap`, `sourceMap` on (matching the plugin's emitted attrs), `paths` mirroring `package.json` `imports`. |
 | [`BUILD.bazel`](BUILD.bazel) | `npm_link_all_packages` (pnpm-driven), `npm_link_package` for the synthetic package, gazelle directives (`ts_npm_link_pattern`, `ts_tsconfig`, `ts_generated_package`). |
 | [`packages/synthetic/BUILD.bazel`](packages/synthetic/BUILD.bazel) | Three `genrule`s producing `index.js` / `package.json` / `index.d.ts`, an `npm_package` wrapping them. The root linker entry maps it to `//:node_modules/@myrepo_generated/synthetic`. |
+| [`tools/ts.bzl`](tools/ts.bzl) | Project wrappers (`myorg_ts_library`, `vitest_test`) that generated BUILDs route to via `# gazelle:map_kind`. Forwards to stock `ts_project` / `js_test`. |
+| [`tools/BUILD.bazel`](tools/BUILD.bazel) | A `js_library` named `mystery` that the `# gazelle:resolve ts ts mystery:banner //tools:mystery` directive maps an arbitrary import string to. |
+
+### Demonstrated directives
+
+This example is the kitchen-sink — you can see all three of gazelle's load-time customization knobs at work:
+
+- **`# gazelle:map_kind`** in [`BUILD.bazel`](BUILD.bazel) routes `ts_project` → `myorg_ts_library` and `js_test` → `vitest_test` (both from `//tools:ts.bzl`). Every emitted BUILD file uses the wrapper kinds.
+- **`# gazelle:resolve`** in [`BUILD.bazel`](BUILD.bazel) maps the virtual import `mystery:banner` to `//tools:mystery`. `apps/cli/main.ts` imports it; the type comes from a co-located `apps/cli/types.d.ts`.
+- **`# keep`** is shown in [`examples/composite/apps/web/BUILD.bazel`](../composite/apps/web/BUILD.bazel) — a `users.json` fixture is hand-added to `data` and survives every `bazel run //:gazelle`.
 
 ## Test runner notes
 

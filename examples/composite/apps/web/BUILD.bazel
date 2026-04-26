@@ -23,6 +23,7 @@ js_test(
     name = "web_test",
     data = [
         "UserList.test.ts",
+        "users.json",  # keep
         ":web",
         "//:node_modules/@types/node",
         "//:node_modules/@types/react",

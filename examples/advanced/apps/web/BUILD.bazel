@@ -1,7 +1,6 @@
-load("@aspect_rules_js//js:defs.bzl", "js_test")
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("//tools:ts.bzl", "myorg_ts_library", "vitest_test")
 
-ts_project(
+myorg_ts_library(
     name = "web",
     srcs = ["index.ts"],
     composite = True,
@@ -20,7 +19,7 @@ ts_project(
     ],
 )
 
-js_test(
+vitest_test(
     name = "web_test",
     data = [
         "app.test.ts",

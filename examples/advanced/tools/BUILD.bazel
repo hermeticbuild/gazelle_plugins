@@ -1,0 +1,11 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
+# gazelle:ts_enabled false
+
+exports_files(["ts.bzl"])
+
+js_library(
+    name = "mystery",
+    srcs = ["mystery.js"],
+    visibility = ["//visibility:public"],
+)

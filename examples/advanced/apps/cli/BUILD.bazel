@@ -1,8 +1,11 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("//tools:ts.bzl", "myorg_ts_library")
 
-ts_project(
+myorg_ts_library(
     name = "cli",
-    srcs = ["main.ts"],
+    srcs = [
+        "main.ts",
+        "types.d.ts",
+    ],
     composite = True,
     declaration = True,
     declaration_map = True,
@@ -14,5 +17,6 @@ ts_project(
         "//:node_modules/@types/node",
         "//packages/core",
         "//packages/utils/math/deep",
+        "//tools:mystery",
     ],
 )
