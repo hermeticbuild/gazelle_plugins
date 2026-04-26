@@ -1,8 +1,18 @@
-load("@gazelle//:def.bzl", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# `ts` is the gazelle Language. Consumers compose their own gazelle_binary
+# referencing this label, e.g.
+#
+#     gazelle_binary(
+#         name = "gazelle_bin",
+#         languages = ["@gazelle_plugins//ts"],
+#     )
+#
+# That keeps the linked binary surface in the consumer's hands (so multiple
+# gazelle languages can be combined into one binary) while we ship just the
+# language plugin.
 go_library(
-    name = "ts_lib",
+    name = "ts",
     srcs = [
         "config.go",
         "configure.go",
@@ -39,16 +49,8 @@ go_test(
         "generate_test.go",
         "resolve_test.go",
     ],
-    embed = [":ts_lib"],
+    embed = [":ts"],
     deps = [
         "@gazelle//rule",
     ],
-)
-
-# Default `ts` target is the gazelle binary so consumers can write
-# `gazelle = "@gazelle_plugins//ts"` (Bazel expands to //ts:ts).
-gazelle_binary(
-    name = "ts",
-    languages = [":ts_lib"],
-    visibility = ["//visibility:public"],
 )

@@ -16,15 +16,22 @@ A Gazelle language extension that generates and maintains BUILD files for TypeSc
 Add a `BUILD.bazel` at the repo root with:
 
 ```starlark
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_plugins//ts"],
+)
 
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//ts",
+    gazelle = ":gazelle_bin",
 )
 ```
 
 Then run `bazel run //:gazelle`.
+
+`@gazelle_plugins//ts` is a Gazelle Language; you compose your own `gazelle_binary` so it can be combined with other languages (`go`, `python`, `proto`, …) into a single binary.
 
 By default the plugin emits:
 
@@ -66,7 +73,7 @@ The plugin tries three sources, in order:
    IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
    ```
    A non-existent path is logged and the lookup falls through to the next source.
-2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The standard path under `bazel run //:gazelle` when the `gazelle_binary` target's `data` deps include the rust binary (the default in this repo's `ts/BUILD.bazel`).
+2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The `ts` go_library declares `data = ["//crates/import-extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
 3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
 
 If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.

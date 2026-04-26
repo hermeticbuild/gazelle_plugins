@@ -1,6 +1,6 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
 # Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
@@ -49,7 +49,12 @@ ts_config(
 # entry_point on the rewritten vitest_test rule would be misleading.
 # gazelle:ts_test_entry_point_auto false
 
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_plugins//ts"],
+)
+
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//ts",
+    gazelle = ":gazelle_bin",
 )
