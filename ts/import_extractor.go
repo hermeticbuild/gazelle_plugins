@@ -18,7 +18,7 @@ import (
 	"os/exec"
 	"sync"
 
-	pb "github.com/hermeticbuild/gazelle_plugins/gazelle_ts_plugin/proto"
+	pb "github.com/hermeticbuild/gazelle_plugins/ts/proto"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	"google.golang.org/protobuf/proto"

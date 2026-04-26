@@ -1,4 +1,4 @@
-# gazelle_ts_plugin
+# ts (Gazelle TypeScript language extension)
 
 A Gazelle language extension that generates and maintains BUILD files for TypeScript packages. It emits stock [`rules_ts`](https://github.com/aspect-build/rules_ts) and [`rules_js`](https://github.com/aspect-build/rules_js) rules, leaving every project-specific concern (custom macros, npm linker layout, project layout, test runner) configurable via directives or [`# gazelle:map_kind`](https://github.com/bazelbuild/bazel-gazelle#directives).
 
@@ -20,7 +20,7 @@ load("@gazelle//:def.bzl", "gazelle")
 
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+    gazelle = "@gazelle_plugins//ts",
 )
 ```
 
@@ -66,7 +66,7 @@ The plugin tries three sources, in order:
    IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
    ```
    A non-existent path is logged and the lookup falls through to the next source.
-2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The standard path under `bazel run //:gazelle` when the `gazelle_binary` target's `data` deps include the rust binary (the default in this repo's `gazelle_ts_plugin/BUILD.bazel`).
+2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The standard path under `bazel run //:gazelle` when the `gazelle_binary` target's `data` deps include the rust binary (the default in this repo's `ts/BUILD.bazel`).
 3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
 
 If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.

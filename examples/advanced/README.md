@@ -1,6 +1,6 @@
 # examples/monorepo
 
-A self-contained Bazel workspace that exercises `gazelle_ts_plugin` against a representative TypeScript monorepo using the **real** `aspect_rules_ts` + `aspect_rules_js` rules — no stubs.
+A self-contained Bazel workspace that exercises the `ts` plugin against a representative TypeScript monorepo using the **real** `aspect_rules_ts` + `aspect_rules_js` rules — no stubs.
 
 ## Layout
 

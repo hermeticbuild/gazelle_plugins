@@ -1,6 +1,6 @@
 # examples/basic
 
-The smallest possible setup demonstrating `gazelle_ts_plugin`: one TypeScript package, third-party npm deps, a smoke test. **No internal cross-package references.**
+The smallest possible setup demonstrating the `ts` plugin: one TypeScript package, third-party npm deps, a smoke test. **No internal cross-package references.**
 
 ## Layout
 

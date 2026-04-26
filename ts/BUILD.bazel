@@ -2,7 +2,7 @@ load("@gazelle//:def.bzl", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "gazelle_ts_plugin",
+    name = "ts_lib",
     srcs = [
         "config.go",
         "configure.go",
@@ -17,10 +17,10 @@ go_library(
         "resolve.go",
     ],
     data = ["//crates/import-extractor:bin"],
-    importpath = "github.com/hermeticbuild/gazelle_plugins/gazelle_ts_plugin",
+    importpath = "github.com/hermeticbuild/gazelle_plugins/ts",
     visibility = ["//visibility:public"],
     deps = [
-        "//gazelle_ts_plugin/proto:import_extractor_go_proto",
+        "//ts/proto:import_extractor_go_proto",
         "@gazelle//config",
         "@gazelle//label",
         "@gazelle//language",
@@ -33,20 +33,22 @@ go_library(
 )
 
 go_test(
-    name = "gazelle_ts_plugin_test",
+    name = "ts_test",
     srcs = [
         "config_test.go",
         "generate_test.go",
         "resolve_test.go",
     ],
-    embed = [":gazelle_ts_plugin"],
+    embed = [":ts_lib"],
     deps = [
         "@gazelle//rule",
     ],
 )
 
+# Default `ts` target is the gazelle binary so consumers can write
+# `gazelle = "@gazelle_plugins//ts"` (Bazel expands to //ts:ts).
 gazelle_binary(
-    name = "gazelle_ts",
-    languages = [":gazelle_ts_plugin"],
+    name = "ts",
+    languages = [":ts_lib"],
     visibility = ["//visibility:public"],
 )

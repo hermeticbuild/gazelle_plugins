@@ -18,7 +18,7 @@ ts_config(
 
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+    gazelle = "@gazelle_plugins//ts",
 )
 
 ts_project(
