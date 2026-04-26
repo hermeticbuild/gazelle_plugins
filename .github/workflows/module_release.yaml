@@ -72,6 +72,10 @@ jobs:
     with:
       tag_name: ${{ needs.release.outputs.tag }}
       registry_fork: hermeticbuild/bazel-central-registry
+      # Attestations are produced by bazel-contrib/release_ruleset; we don't
+      # use that workflow, so the artifacts don't exist. Re-enable once we
+      # wire up actions/attest-build-provenance for our tarball.
+      attest: false
     permissions:
       attestations: write
       contents: write
