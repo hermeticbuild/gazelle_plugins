@@ -1,6 +1,21 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+
+proto_library(
+    name = "import_extractor_proto",
+    srcs = ["proto/message.proto"],
+    strip_import_prefix = "/crates/import-extractor/proto",
+    visibility = ["//visibility:public"],
+)
+
+rust_prost_library(
+    name = "import_extractor_rust_proto",
+    proto = ":import_extractor_proto",
+    visibility = ["//visibility:public"],
+)
 
 rust_library(
     name = "import_extractor",
@@ -13,7 +28,7 @@ rust_library(
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = [
-        "//crates/import-extractor-proto:import_extractor_rust_proto",
+        ":import_extractor_rust_proto",
         # Use the same prost runtime as rust_prost_library — sharing identical
         # versions across separate crate.from_cargo invocations isn't enough,
         # they're distinct repo instances and Rust treats them as different types.
@@ -50,7 +65,7 @@ rust_test(
     edition = "2021",
     deps = [
         ":import_extractor",
-        "//crates/import-extractor-proto:import_extractor_rust_proto",
+        ":import_extractor_rust_proto",
         "@rules_rs//rs/private/prost:prost_runtime",
     ],
 )
