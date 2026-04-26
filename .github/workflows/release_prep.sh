@@ -7,7 +7,7 @@
 #        TAG is also picked up from $GITHUB_REF_NAME when no arg is given.
 #
 # Stdout: release notes (markdown) ready to feed to softprops/action-gh-release.
-# Side effect: writes ${MODULE}-${VERSION}.tar.gz into the working directory.
+# Side effect: writes ${MODULE}-${TAG}.tar.gz into the working directory.
 
 set -o errexit -o nounset -o pipefail
 
@@ -17,12 +17,13 @@ if [[ -z "${TAG}" ]]; then
     exit 1
 fi
 
-# BCR substitutes {VERSION} into source.template.json without the leading "v",
-# so the tarball prefix and bazel_dep snippet must match.
+# source.template.json uses {VERSION} (no leading "v") for strip_prefix and
+# {TAG} (with "v") in the URL — mirror both. The tarball *file* is named with
+# {TAG}; the directory *inside* uses {VERSION}.
 VERSION="${TAG#v}"
 MODULE=gazelle_plugins
 PREFIX="${MODULE}-${VERSION}"
-ARCHIVE="${PREFIX}.tar.gz"
+ARCHIVE="${MODULE}-${TAG}.tar.gz"
 
 git archive --format=tar --prefix="${PREFIX}/" "${TAG}" | gzip -9 > "${ARCHIVE}"
 
