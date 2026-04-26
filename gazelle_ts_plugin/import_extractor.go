@@ -1,4 +1,4 @@
-// parser_oxc.go: Go client for the import-extractor Rust subprocess.
+// import_extractor.go: Go client for the import-extractor Rust subprocess.
 //
 // The wire format is length-prefixed protobuf frames:
 //
@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -23,9 +24,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// OxcParser owns a long-lived import-extractor subprocess. All methods are
+// ImportExtractor owns a long-lived import-extractor subprocess. All methods are
 // serialized via the mutex because there's a single stdin/stdout pair.
-type OxcParser struct {
+type ImportExtractor struct {
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
 	stdout io.Reader
@@ -33,10 +34,10 @@ type OxcParser struct {
 	nextID uint32
 }
 
-// newOxcParser locates the binary via Bazel runfiles and starts it. Stderr
+// newImportExtractor locates the binary via Bazel runfiles and starts it. Stderr
 // is forwarded to ours so panics and skipped-file warnings are visible.
-func newOxcParser() (*OxcParser, error) {
-	binPath := findOxcBinary()
+func newImportExtractor() (*ImportExtractor, error) {
+	binPath := findImportExtractorBinary()
 	if binPath == "" {
 		return nil, fmt.Errorf("import-extractor binary not found in runfiles")
 	}
@@ -56,24 +57,47 @@ func newOxcParser() (*OxcParser, error) {
 		return nil, fmt.Errorf("start %s: %w", binPath, err)
 	}
 
-	return &OxcParser{cmd: cmd, stdin: stdin, stdout: stdout}, nil
+	return &ImportExtractor{cmd: cmd, stdin: stdin, stdout: stdout}, nil
 }
 
-// findOxcBinary resolves the import-extractor path via Bazel runfiles, with
-// an env-var override for non-Bazel runs (tests, manual debugging).
-func findOxcBinary() string {
+// findImportExtractorBinary resolves the import-extractor binary path. Lookup order,
+// highest priority first:
+//
+//  1. $IMPORT_EXTRACTOR_BIN — explicit absolute path. Use this when shipping
+//     a prebuilt binary outside of Bazel (release artifact, vendored tool,
+//     CI cache). A non-existent path is logged and the lookup continues.
+//  2. Bazel runfiles — `gazelle_plugins/crates/import-extractor/bin`. The
+//     standard path when the plugin runs under `bazel run //:gazelle` and
+//     the gazelle_binary's `data` deps include the rust binary.
+//  3. $PATH — looks for an `import_extractor` executable. Picks up a
+//     `cargo install`-style global install or anything dropped on PATH by
+//     a developer's environment manager.
+//
+// Returns "" if none match; callers log a warning and skip parsing rather
+// than aborting the gazelle run.
+func findImportExtractorBinary() string {
 	if bin := os.Getenv("IMPORT_EXTRACTOR_BIN"); bin != "" {
+		if _, err := os.Stat(bin); err == nil {
+			return bin
+		}
+		log.Printf("ts: IMPORT_EXTRACTOR_BIN=%q does not exist; trying Bazel runfiles + $PATH", bin)
+	}
+
+	if bin, err := runfiles.Rlocation("gazelle_plugins/crates/import-extractor/bin"); err == nil {
+		if _, err := os.Stat(bin); err == nil {
+			return bin
+		}
+	}
+
+	if bin, err := exec.LookPath("import_extractor"); err == nil {
 		return bin
 	}
-	bin, err := runfiles.Rlocation("gazelle_plugins/crates/import-extractor/bin")
-	if err != nil {
-		return ""
-	}
-	return bin
+
+	return ""
 }
 
 // Close shuts down the subprocess by closing stdin and waiting for exit.
-func (p *OxcParser) Close() error {
+func (p *ImportExtractor) Close() error {
 	if p.stdin != nil {
 		p.stdin.Close()
 	}
@@ -85,7 +109,7 @@ func (p *OxcParser) Close() error {
 
 // ExtractImports sends a batch of file paths and returns parsed imports keyed
 // by file path. Files that fail to parse are silently dropped by the Rust side.
-func (p *OxcParser) ExtractImports(files []string) (map[string][]string, error) {
+func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -120,7 +144,7 @@ func (p *OxcParser) ExtractImports(files []string) (map[string][]string, error) 
 	}
 }
 
-func (p *OxcParser) writeFrame(req *pb.Request) error {
+func (p *ImportExtractor) writeFrame(req *pb.Request) error {
 	payload, err := proto.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -136,7 +160,7 @@ func (p *OxcParser) writeFrame(req *pb.Request) error {
 	return nil
 }
 
-func (p *OxcParser) readFrame() (*pb.Response, error) {
+func (p *ImportExtractor) readFrame() (*pb.Response, error) {
 	var lenBuf [4]byte
 	if _, err := io.ReadFull(p.stdout, lenBuf[:]); err != nil {
 		return nil, fmt.Errorf("read response length: %w", err)

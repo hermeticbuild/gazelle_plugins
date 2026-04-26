@@ -11,12 +11,12 @@ import (
 // language.BaseLifecycleManager keeps us forward-compatible with new hooks.
 type lifeCycleManager struct {
 	language.BaseLifecycleManager
-	parser *OxcParser
+	parser *ImportExtractor
 }
 
 // Before is called once at plugin startup; we spawn the Rust subprocess here.
 func (l *lifeCycleManager) Before(ctx context.Context) {
-	p, err := newOxcParser()
+	p, err := newImportExtractor()
 	if err != nil {
 		log.Printf("ts: import-extractor unavailable: %v", err)
 		return

@@ -57,6 +57,20 @@ The plugin runs in three phases per Gazelle's lifecycle:
 
 The Rust subprocess at [`crates/import-extractor`](../crates/import-extractor) is spawned once per Gazelle run and shut down at `DoneGeneratingRules`. Communication is length-prefixed protobuf frames over stdin/stdout — see the subprocess's README for the wire schema.
 
+### Locating the import-extractor binary
+
+The plugin tries three sources, in order:
+
+1. **`$IMPORT_EXTRACTOR_BIN`** — explicit absolute path. Use this when shipping a prebuilt binary outside Bazel (release artifact, vendored tool, CI cache):
+   ```bash
+   IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
+   ```
+   A non-existent path is logged and the lookup falls through to the next source.
+2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The standard path under `bazel run //:gazelle` when the `gazelle_binary` target's `data` deps include the rust binary (the default in this repo's `gazelle_ts_plugin/BUILD.bazel`).
+3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
+
+If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.
+
 The plugin's separation of `Imports` (provider side) from `Resolve` (consumer side) is what makes cross-directory `references` work: `Imports()` registers each library at its package path in the RuleIndex, and `Resolve()` queries that index to convert `#packages/foo/bar.ts` style paths into `//packages/foo` labels.
 
 ## Supported import patterns

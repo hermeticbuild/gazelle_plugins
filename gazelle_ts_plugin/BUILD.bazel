@@ -13,7 +13,7 @@ go_library(
         "language.go",
         "lifecycle.go",
         "parser.go",
-        "parser_oxc.go",
+        "import_extractor.go",
         "resolve.go",
     ],
     data = ["//crates/import-extractor:bin"],
