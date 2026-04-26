@@ -5,6 +5,11 @@
             "name": "Long Ho",
             "email": "holevietlong@gmail.com",
             "github": "longlho"
+        },
+        {
+            "name": "David Zbarsky",
+            "email": "dzbarsky@gmail.com",
+            "github": "dzbarsky"
         }
     ],
     "repository": ["github:hermeticbuild/gazelle_plugins"],
