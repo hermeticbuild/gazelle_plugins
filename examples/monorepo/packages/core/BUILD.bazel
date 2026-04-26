@@ -1,0 +1,16 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+ts_project(
+    name = "core",
+    srcs = ["index.ts"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/node",
+        "//:node_modules/zod",
+    ],
+)

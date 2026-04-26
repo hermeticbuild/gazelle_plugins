@@ -19,20 +19,26 @@ import (
 // Note that we always emit the stock kinds (ts_project, js_test) here. When
 // the consumer applies `# gazelle:map_kind ts_project myrepo_ts_library …`,
 // gazelle rewrites the kind on disk but still uses these merge rules.
+// Stock rules_ts/rules_js attribute model:
+//   - ts_project uses `deps` for both npm packages and ts_project-to-ts_project
+//     project references; `composite = True` on the dep is what TypeScript
+//     reads as a project reference. There is no separate `references` attr.
+//   - js_test uses `data` for everything (test source, npm packages, fixtures)
+//     and `entry_point` to pick the .js file to run. There is no `srcs` or
+//     `deps` attr.
 var tsKinds = map[string]rule.KindInfo{
 	defaultLibraryKind: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
 		MergeableAttrs: map[string]bool{"srcs": true},
 		ResolveAttrs: map[string]bool{
-			"deps":       true,
-			"references": true,
+			"deps": true,
 		},
 	},
 	defaultTestKind: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"srcs": true, "data": true},
+		MergeableAttrs: map[string]bool{"data": true},
 		ResolveAttrs: map[string]bool{
-			"deps": true,
+			"data": true,
 		},
 	},
 }

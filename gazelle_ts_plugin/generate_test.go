@@ -78,6 +78,61 @@ func TestMatchTestPattern(t *testing.T) {
 	}
 }
 
+func TestResolveRuleNames(t *testing.T) {
+	cases := []struct {
+		name           string
+		cfg            *tsConfig
+		rel            string
+		wantLib        string
+		wantTest       string
+	}{
+		{
+			name:     "default uses package basename",
+			cfg:      newTsConfig(),
+			rel:      "apps/web",
+			wantLib:  "web",
+			wantTest: "web_test",
+		},
+		{
+			name:     "deeply nested uses leaf basename",
+			cfg:      newTsConfig(),
+			rel:      "packages/utils/math/deep",
+			wantLib:  "deep",
+			wantTest: "deep_test",
+		},
+		{
+			name:     "repo root falls back to literal lib/test",
+			cfg:      newTsConfig(),
+			rel:      "",
+			wantLib:  "lib",
+			wantTest: "test",
+		},
+		{
+			name: "directive overrides win",
+			cfg: func() *tsConfig {
+				c := newTsConfig()
+				c.libraryName = "src"
+				c.testName = "spec"
+				return c
+			}(),
+			rel:      "packages/foo",
+			wantLib:  "src",
+			wantTest: "spec",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			lib, test := resolveRuleNames(c.cfg, c.rel)
+			if lib != c.wantLib {
+				t.Errorf("lib = %q, want %q", lib, c.wantLib)
+			}
+			if test != c.wantTest {
+				t.Errorf("test = %q, want %q", test, c.wantTest)
+			}
+		})
+	}
+}
+
 func TestCollectSrcs(t *testing.T) {
 	cfg := newTsConfig()
 	files := []string{

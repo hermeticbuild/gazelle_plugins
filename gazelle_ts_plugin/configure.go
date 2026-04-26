@@ -20,6 +20,7 @@ const (
 	directiveExtension       = "ts_extension"
 	directiveProjectRefs     = "ts_project_references"
 	directiveTsconfig        = "ts_tsconfig"
+	directiveTranspiler      = "ts_transpiler"
 	directiveNpmLinkPattern  = "ts_npm_link_pattern"
 	directiveGeneratedPackage = "ts_generated_package"
 	directiveTestData        = "ts_test_data"
@@ -46,6 +47,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveExtension,
 		directiveProjectRefs,
 		directiveTsconfig,
+		directiveTranspiler,
 		directiveNpmLinkPattern,
 		directiveGeneratedPackage,
 		directiveTestData,
@@ -119,6 +121,8 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		cfg.projectReferences = parseBool(val, cfg.projectReferences)
 	case directiveTsconfig:
 		cfg.tsconfig = val
+	case directiveTranspiler:
+		cfg.transpiler = val
 	case directiveNpmLinkPattern:
 		if val != "" {
 			cfg.npmLinkPattern = val
