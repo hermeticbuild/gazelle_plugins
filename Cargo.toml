@@ -7,7 +7,7 @@ members = [
 [workspace.package]
 edition = "2021"
 rust-version = "1.84"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/hermeticbuild/gazelle_plugins"
 
 [profile.release]
