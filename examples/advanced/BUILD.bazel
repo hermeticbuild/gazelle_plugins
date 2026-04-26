@@ -42,6 +42,7 @@ ts_config(
 # the kind name + load path on disk. The wrappers (myorg_ts_library /
 # vitest_test) accept the same attrs and forward to the stock rules.
 # gazelle:map_kind ts_project myorg_ts_library //tools:ts.bzl
+# gazelle:map_kind js_binary  myorg_js_binary //tools:ts.bzl
 # gazelle:map_kind js_test    vitest_test     //tools:ts.bzl
 
 # vitest auto-discovers test files via its own config — emitting

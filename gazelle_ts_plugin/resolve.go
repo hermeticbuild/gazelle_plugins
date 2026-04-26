@@ -84,6 +84,15 @@ func (l *tsLang) Resolve(
 		all = append(all, srcResolved.external...)
 		all = append(all, srcResolved.internal...)
 		setOrDelete(r, "data", all)
+
+	case KindJsBinary:
+		// We don't generate js_binary rules — only fill in their `data` attr
+		// based on what their entry_point/srcs import. The user's existing
+		// entry_point, env, fixed_args, etc. are left alone.
+		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
+		all := append([]string{}, resolved.external...)
+		all = append(all, resolved.internal...)
+		setOrDelete(r, "data", all)
 	}
 }
 
