@@ -13,6 +13,7 @@ repository = "https://github.com/hermeticbuild/gazelle_plugins"
 [profile.release]
 panic = "abort"
 codegen-units = 1
+lto = "thin"
 
 [workspace.dependencies]
 # TypeScript parsing (oxc)

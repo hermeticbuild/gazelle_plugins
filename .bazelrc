@@ -12,10 +12,10 @@ common:linux --host_platform=//:local_gnu_platform
 build --show_result=0
 test --test_output=errors
 
-# Release builds: opt-level 3, single codegen unit, abort on panic, strip symbols.
+# Release builds: opt-level 3, single codegen unit, abort on panic, strip symbols, thin LTO.
 # Keeps the published binary small and matches Cargo's [profile.release] settings.
 build:opt --compilation_mode=opt
-build:opt --@rules_rust//:extra_rustc_flags=-Ccodegen-units=1,-Cpanic=abort,-Cstrip=symbols
+build:opt --@rules_rust//:extra_rustc_flags=-Ccodegen-units=1,-Cpanic=abort,-Cstrip=symbols,-Clto=thin,-Cembed-bitcode=yes
 
 # Local user overrides
 try-import %workspace%/.bazelrc.user
