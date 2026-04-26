@@ -1,0 +1,50 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@npm//:@graphql-codegen/cli/package_json.bzl", graphql_codegen_bin = "bin")
+
+# gazelle:ts_enabled false
+
+# Run real @graphql-codegen against the schema + operations. Outputs a single
+# .ts file that subsequent steps compile and package.
+graphql_codegen_bin.graphql_codegen(
+    name = "codegen",
+    srcs = [
+        "codegen.ts",
+        "queries.graphql",
+        "schema.graphql",
+        "//:node_modules/@graphql-codegen/typescript",
+        "//:node_modules/@graphql-codegen/typescript-operations",
+        "//:node_modules/graphql",
+    ],
+    outs = ["generated.ts"],
+    args = [
+        "--config",
+        "$(execpath codegen.ts)",
+    ],
+)
+
+# Compile the generated .ts to .js + .d.ts so the resulting npm package
+# exposes both runtime and types — exactly what a hand-written package
+# would ship.
+ts_project(
+    name = "compiled",
+    srcs = [":generated.ts"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    deps = ["//:node_modules/graphql"],
+)
+
+# Wrap the compiled output + a hand-written package.json into a real
+# npm_package directory layout. The root BUILD links it into //:node_modules.
+npm_package(
+    name = "queries",
+    srcs = [
+        "package.json",
+        ":compiled",
+    ],
+    package = "@myrepo_generated/queries",
+    visibility = ["//visibility:public"],
+)
