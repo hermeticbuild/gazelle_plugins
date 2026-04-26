@@ -1,6 +1,6 @@
 # examples/monorepo
 
-A self-contained Bazel workspace demonstrating `gazelle_ts_plugin` against a representative TypeScript monorepo: two top-level apps, a shared core package, and deeply nested composite utilities.
+A self-contained Bazel workspace that exercises `gazelle_ts_plugin` against a representative TypeScript monorepo using the **real** `aspect_rules_ts` + `aspect_rules_js` rules — no stubs.
 
 ## Layout
 
@@ -8,47 +8,55 @@ A self-contained Bazel workspace demonstrating `gazelle_ts_plugin` against a rep
 .
 ├── apps/
 │   ├── web/       # browser app — React + react-query + cross-package refs
-│   └── cli/       # node CLI — node:fs + zod + cross-package refs
+│   └── cli/       # node CLI — node:fs + zod + cross-package refs + synthetic pkg
 └── packages/
     ├── core/                    # base package, no internal deps
+    ├── synthetic/               # genrule-built npm_package + npm_link_package
     └── utils/
         ├── string/              # depends on packages/core
         └── math/deep/           # depends on packages/core, deeply nested
 ```
 
-Each `*.ts` file demonstrates a different mix of import patterns — npm packages (bare and scoped), `@types/*` auto-pairing, Node.js builtins, and `package.json`-mapped subpath imports across packages.
+Every `*.ts` file demonstrates a different mix of import patterns. The synthetic package shows how Bazel-generated npm packages (not in `package.json`) are wired via the `# gazelle:ts_generated_package` directive.
 
 ## What this verifies
 
-- Cross-package `references` (TS project references) are resolved across arbitrary nesting depth.
-- npm packages (including scoped ones) round-trip through `ts_npm_link_pattern`.
-- `@types/*` packages are auto-added when the runtime package has them.
+- `ts_project` rules with cross-package `deps` resolved across arbitrary nesting depth (including TS project references — `composite = True` on each library).
+- `js_test` targets generated for `*.test.ts` files; the example runs them directly via Node 22's `--experimental-transform-types` (no precompile step needed).
+- npm packages auto-paired with `@types/*` when present in `package.json`.
 - Node.js builtins resolve to `@types/node`.
-- Test files (`*.test.ts`) get their own `js_test` rule with `entry_point` set.
+- Synthetic Bazel-generated packages link into `//:node_modules/@myrepo_generated/synthetic` via `npm_link_package` and resolve through the `ts_generated_package` directive.
+- The full chain — pnpm-lock translation, `npm_link_all_packages`, `ts_project` with the tsc transpiler, and `js_test` with Node 22 type stripping — composes end-to-end.
 
-## How it builds without a real `rules_ts` setup
-
-This example points `# gazelle:map_kind` at stub `ts_project` / `js_test` macros in [`tools/stubs.bzl`](tools/stubs.bzl), so generated BUILD files load and `bazel build //...` succeeds without pnpm or tsc. Real consumers replace those map_kind directives with `@aspect_rules_ts//ts:defs.bzl` and `@aspect_rules_js//js:defs.bzl` (or their own macros).
-
-`tools/npm/` is a hand-curated set of stub `filegroup` targets that stand in for what `npm_link_all_packages()` would create from a pnpm-lock. Real consumers delete `tools/npm/`.
-
-## Try it
+## Running
 
 ```bash
-# Regenerate BUILD files from current source
+# Regenerate BUILD files
 bazel run //:gazelle
 
-# Build everything
+# Build everything (compiles all TS via tsc)
 bazel build //...
 
-# Run tests (the stub test runner just exits 0)
+# Run tests
 bazel test //...
 ```
 
-## Adapting this to your repo
+## Key wiring
 
-1. Drop the stub map_kind directives in `BUILD.bazel`.
-2. Add `aspect_rules_ts` + `aspect_rules_js` + a pnpm setup to your `MODULE.bazel`.
-3. Set `# gazelle:ts_npm_link_pattern //pnpm:node_modules/{pkg}` (or wherever your `npm_link_all_packages` lives).
-4. Set `# gazelle:ts_tsconfig //:tsconfig` so generated `ts_project` rules pick up your shared tsconfig.
-5. Run `bazel run //:gazelle`.
+| File | What it sets up |
+|---|---|
+| [`MODULE.bazel`](MODULE.bazel) | `aspect_rules_js`, `aspect_rules_ts`, `rules_nodejs`, `npm_translate_lock`, `rules_ts_ext.deps()`. Pins Node 22.11 and a local override on the parent `gazelle_plugins` repo. |
+| [`.bazelrc`](.bazelrc) | `--@aspect_rules_ts//ts:default_to_tsc_transpiler=True` so every `ts_project` defaults to tsc; `--test_env=NODE_OPTIONS=--experimental-transform-types` so `js_test` can run `.ts` files directly. |
+| [`tsconfig.json`](tsconfig.json) | `composite`, `declaration`, `declarationMap`, `sourceMap` on (matching the plugin's emitted attrs), `paths` mirroring `package.json` `imports`. |
+| [`BUILD.bazel`](BUILD.bazel) | `npm_link_all_packages` (pnpm-driven), `npm_link_package` for the synthetic package, gazelle directives (`ts_npm_link_pattern`, `ts_tsconfig`, `ts_generated_package`). |
+| [`packages/synthetic/BUILD.bazel`](packages/synthetic/BUILD.bazel) | Three `genrule`s producing `index.js` / `package.json` / `index.d.ts`, an `npm_package` wrapping them. The root linker entry maps it to `//:node_modules/@myrepo_generated/synthetic`. |
+
+## Test runner notes
+
+The example uses a smoke `*.test.ts` that runs directly under Node 22's experimental type-stripping. For real test runners (vitest, jest, mocha), the typical pattern is:
+
+```starlark
+# gazelle:map_kind js_test vitest_test //tools:vitest.bzl
+```
+
+Your `vitest_test` macro takes the same `data` + `entry_point` attrs the plugin emits and dispatches them to your runner. Subpath imports (`#packages/*` style) at runtime require either bundling the test or shipping `package.json` with the test sandbox; that's runner-specific.

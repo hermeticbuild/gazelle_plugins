@@ -1,14 +1,16 @@
-load("//tools:stubs.bzl", "ts_project")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 ts_project(
     name = "lib",
     srcs = ["index.ts"],
     composite = True,
     declaration = True,
+    declaration_map = True,
     source_map = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
-        "//tools/npm:@types/node",
-        "//tools/npm:zod",
+        "//:node_modules/@types/node",
+        "//:node_modules/zod",
     ],
 )

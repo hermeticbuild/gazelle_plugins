@@ -5,6 +5,9 @@
   "imports": {
     "#packages/*": "./packages/*"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
     "lodash": "^4.17.0",

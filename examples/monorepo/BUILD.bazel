@@ -1,14 +1,38 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 
-# Re-route the stock kinds the plugin emits to local stubs so the example
-# can `bazel build //...` without a full rules_ts/rules_js setup. Real users
-# point map_kind at @aspect_rules_ts // @aspect_rules_js (or their own macros).
-# gazelle:map_kind ts_project ts_project //tools:stubs.bzl
-# gazelle:map_kind js_test    js_test    //tools:stubs.bzl
+# Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
+npm_link_all_packages(name = "node_modules")
 
-# Tell the plugin how to resolve npm packages: this example doesn't actually
-# wire pnpm, so we send everything to a placeholder npm_stubs filegroup.
-# gazelle:ts_npm_link_pattern //tools/npm:{pkg}
+# Bazel-generated npm package — links into //:node_modules/@myrepo_generated/synthetic
+# alongside the pnpm-managed ones. The plugin's `ts_generated_package`
+# directive points at this label so imports resolve.
+npm_link_package(
+    name = "node_modules/@myrepo_generated/synthetic",
+    src = "//packages/synthetic:pkg",
+    package = "@myrepo_generated/synthetic",
+    visibility = ["//visibility:public"],
+)
+
+# Shared tsconfig — referenced by every ts_project via `ts_tsconfig`.
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# Default npm linker layout matches what rules_js produces by convention.
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+
+# Pull in the shared tsconfig on every emitted ts_project.
+# gazelle:ts_tsconfig //:tsconfig
+
+# Synthetic Bazel-generated package — not in package.json, so the resolver
+# would otherwise drop it. The directive points the prefix at a literal
+# Bazel label so imports like `@myrepo_generated/synthetic` resolve correctly.
+# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
 
 gazelle(
     name = "gazelle",

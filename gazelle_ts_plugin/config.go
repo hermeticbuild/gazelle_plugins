@@ -52,6 +52,12 @@ type tsConfig struct {
 	// `tsconfig` attr. Empty = unset.
 	tsconfig string
 
+	// transpiler: when set, emitted as the `transpiler` attr on every
+	// ts_project. rules_ts requires a transpiler selection; common values
+	// are `partial(@aspect_rules_ts//ts:defs.bzl%tsc)` (a .bzl call) or a
+	// custom macro name like `swc`.
+	transpiler string
+
 	// npmLinkPattern is the template used for npm package labels, e.g.
 	// `//:node_modules/{pkg}`. The literal `{pkg}` is replaced with the
 	// resolved package name.

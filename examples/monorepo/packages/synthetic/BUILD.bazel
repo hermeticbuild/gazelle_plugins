@@ -1,0 +1,53 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+
+# A genrule-built npm package that doesn't exist in package.json. Its
+# linker entry lives at the root BUILD (`//:node_modules/@myrepo_generated/synthetic`)
+# so the resolver can target it like any other npm package.
+
+# gazelle:ts_enabled false
+
+genrule(
+    name = "gen_index",
+    outs = ["index.js"],
+    cmd = """cat > $@ <<'EOF'
+// Synthetic Bazel-generated package.
+exports.greeting = function(name) {
+  return 'hello, ' + name + '!';
+};
+EOF
+""",
+)
+
+genrule(
+    name = "gen_package_json",
+    outs = ["package.json"],
+    cmd = """cat > $@ <<'EOF'
+{
+  "name": "@myrepo_generated/synthetic",
+  "version": "0.0.0",
+  "main": "index.js",
+  "types": "index.d.ts"
+}
+EOF
+""",
+)
+
+genrule(
+    name = "gen_index_d_ts",
+    outs = ["index.d.ts"],
+    cmd = """cat > $@ <<'EOF'
+export declare function greeting(name: string): string;
+EOF
+""",
+)
+
+npm_package(
+    name = "pkg",
+    srcs = [
+        "index.d.ts",
+        "index.js",
+        "package.json",
+    ],
+    package = "@myrepo_generated/synthetic",
+    visibility = ["//visibility:public"],
+)

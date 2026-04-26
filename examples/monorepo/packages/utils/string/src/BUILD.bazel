@@ -1,15 +1,17 @@
-load("//tools:stubs.bzl", "ts_project")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 ts_project(
     name = "lib",
     srcs = ["format.ts"],
     composite = True,
     declaration = True,
-    references = ["//packages/core/src:lib"],
+    declaration_map = True,
     source_map = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
-        "//tools/npm:@types/lodash",
-        "//tools/npm:lodash",
+        "//:node_modules/@types/lodash",
+        "//:node_modules/lodash",
+        "//packages/core/src:lib",
     ],
 )

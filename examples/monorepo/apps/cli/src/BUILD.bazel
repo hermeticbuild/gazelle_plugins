@@ -1,15 +1,18 @@
-load("//tools:stubs.bzl", "ts_project")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 ts_project(
     name = "lib",
     srcs = ["main.ts"],
     composite = True,
     declaration = True,
-    references = [
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@myrepo_generated/synthetic",
+        "//:node_modules/@types/node",
         "//packages/core/src:lib",
         "//packages/utils/math/deep/src:lib",
     ],
-    source_map = True,
-    visibility = ["//visibility:public"],
-    deps = ["//tools/npm:@types/node"],
 )

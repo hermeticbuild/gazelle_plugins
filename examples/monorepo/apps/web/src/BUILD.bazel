@@ -1,32 +1,37 @@
-load("//tools:stubs.bzl", "js_test", "ts_project")
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 ts_project(
     name = "lib",
     srcs = ["index.ts"],
     composite = True,
     declaration = True,
-    references = [
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@tanstack/react-query",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
         "//packages/core/src:lib",
         "//packages/utils/math/deep/src:lib",
         "//packages/utils/string/src:lib",
-    ],
-    source_map = True,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//tools/npm:@tanstack/react-query",
-        "//tools/npm:@types/react",
-        "//tools/npm:react",
     ],
 )
 
 js_test(
     name = "test",
-    srcs = ["app.test.ts"],
-    entry_point = "app.test.ts",
-    deps = [
-        "//tools/npm:@tanstack/react-query",
-        "//tools/npm:@types/react",
-        "//tools/npm:react",
-        "//tools/npm:vitest",
+    data = [
+        "app.test.ts",
+        ":lib",
+        "//:node_modules/@tanstack/react-query",
+        "//:node_modules/@types/node",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+        "//packages/core/src:lib",
+        "//packages/utils/math/deep/src:lib",
+        "//packages/utils/string/src:lib",
     ],
+    entry_point = "app.test.ts",
 )

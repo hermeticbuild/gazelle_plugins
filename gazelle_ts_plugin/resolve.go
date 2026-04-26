@@ -63,22 +63,27 @@ func (l *tsLang) Resolve(
 
 	switch r.Kind() {
 	case cfg.libraryKind:
+		// Stock ts_project takes a single `deps` attr for both npm packages
+		// and ts_project-to-ts_project project references — `composite` on
+		// the dep is what TypeScript reads as a project reference.
 		resolved := l.resolveImportsToDeps(importData.Imports, from, ix, cfg)
-		setOrDelete(r, "deps", resolved.external)
-		if cfg.projectReferences {
-			setOrDelete(r, "references", resolved.internal)
-		}
+		all := append([]string{}, resolved.external...)
+		all = append(all, resolved.internal...)
+		setOrDelete(r, "deps", all)
 
 	case cfg.testKind:
-		// Tests need their own imports plus any external deps the source
-		// pulled in: a generated package linked from src may still need to
-		// be sandboxed for the test to run.
+		// Stock js_test takes `data` for everything: every npm package, every
+		// internal lib the test imports, plus the test sources themselves
+		// (already added in GenerateRules). Merge into the existing data list.
 		testResolved := l.resolveImportsToDeps(importData.TestImports, from, ix, cfg)
 		srcResolved := l.resolveImportsToDeps(importData.Imports, from, ix, cfg)
-		all := append([]string{}, testResolved.external...)
-		all = append(all, srcResolved.external...)
+		existing := r.AttrStrings("data")
+		all := append([]string{}, existing...)
+		all = append(all, testResolved.external...)
 		all = append(all, testResolved.internal...)
-		setOrDelete(r, "deps", all)
+		all = append(all, srcResolved.external...)
+		all = append(all, srcResolved.internal...)
+		setOrDelete(r, "data", all)
 	}
 }
 
@@ -114,10 +119,18 @@ func (l *tsLang) resolveImportsToDeps(
 			continue
 		}
 
-		// Subpath imports — anything matching a key in subpathImportsMap
-		// (sourced from package.json `imports` or ts_generated_package).
-		if target := l.resolveSubpathImport(path, from, ix); target != "" {
-			result.internal = append(result.internal, target)
+		// Subpath / generated-package imports — anything matching a key in
+		// subpathImportsMap (sourced from package.json `imports` or
+		// ts_generated_package). Literal Bazel labels (start with `//` or
+		// `@`) go to `deps` because they're typically npm-style packages
+		// (npm_package, js_library, …); workspace-path targets resolve via
+		// the RuleIndex and go to `references` (TS project references).
+		if target, external := l.resolveSubpathImport(path, from, ix); target != "" {
+			if external {
+				result.external = append(result.external, target)
+			} else {
+				result.internal = append(result.internal, target)
+			}
 			continue
 		}
 
@@ -144,8 +157,10 @@ func (l *tsLang) resolveImportsToDeps(
 }
 
 // resolveSubpathImport tries each key in subpathImportsMap (longest pattern
-// first) and returns the matching Bazel label, or empty if none matches.
-func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *resolve.RuleIndex) string {
+// first) and returns the matching Bazel label plus a flag indicating whether
+// the label is external (deps) or internal (references). Empty label means
+// no match.
+func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *resolve.RuleIndex) (string, bool) {
 	keys := make([]string, 0, len(l.subpathImportsMap))
 	for k := range l.subpathImportsMap {
 		keys = append(keys, k)
@@ -161,16 +176,17 @@ func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *r
 		}
 
 		// If the target itself is already a Bazel label, use it directly
-		// (with the `*` substituted for the matched suffix).
+		// (with the `*` substituted for the matched suffix). Literal labels
+		// are treated as external deps — typical use is wiring a synthetic
+		// npm-style package (npm_package, js_library) for things not in
+		// package.json.
 		if strings.HasPrefix(target, "//") || strings.HasPrefix(target, "@") {
 			suffix := strings.TrimPrefix(importPath, prefix)
 			out := strings.ReplaceAll(target, "*", suffix)
-			// If the substituted label contains a wildcard remnant, take just
-			// the pre-`*` portion of the original target.
 			if strings.Contains(out, "*") {
 				out = strings.TrimSuffix(target, "*")
 			}
-			return out
+			return out, true
 		}
 
 		// Otherwise treat target as a path within the repo and look up the
@@ -186,21 +202,21 @@ func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *r
 		for i := len(parts); i > 0; i-- {
 			testPath := strings.Join(parts[:i], "/")
 			if testPath == from.Pkg {
-				return ""
+				return "", false
 			}
 			// Use the actual rule label from the index — it carries the
 			// resolved rule name, which may not match the directory basename
 			// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
 			// //packages/foo).
 			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath}, languageName); len(found) > 0 {
-				return found[0].Label.Rel(from.Repo, from.Pkg).String()
+				return found[0].Label.Rel(from.Repo, from.Pkg).String(), false
 			}
 			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath + "/*"}, languageName); len(found) > 0 {
-				return found[0].Label.Rel(from.Repo, from.Pkg).String()
+				return found[0].Label.Rel(from.Repo, from.Pkg).String(), false
 			}
 		}
 	}
-	return ""
+	return "", false
 }
 
 // matchNpmPackage returns the package name (handling `@scope/name` correctly)

@@ -70,26 +70,35 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			r.SetAttr("tsconfig", cfg.tsconfig)
 		}
 		if cfg.projectReferences {
-			// `composite = True` is required for ts_project to be referenced
-			// via `references`. Resolve() fills the `references` attr.
-			r.SetAttr("declaration", true)
-			r.SetAttr("source_map", true)
+			// `composite = True` is what TypeScript reads as a project
+			// reference. The other flags match the tsconfig validator's
+			// expectations when the shared tsconfig has them on.
 			r.SetAttr("composite", true)
+			r.SetAttr("declaration", true)
+			r.SetAttr("declaration_map", true)
+			r.SetAttr("source_map", true)
 		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{Imports: sourceImports})
 	}
 
 	if len(testSrcs) > 0 {
+		// Stock js_test takes `data` (no srcs/deps). The entry_point is the
+		// .js file node runs; data carries every input the test sandbox
+		// needs (test source files, fixtures, npm packages, sibling lib).
 		r := rule.NewRule(cfg.testKind, cfg.testName)
-		r.SetAttr("srcs", testSrcs)
-		if len(cfg.testData) > 0 {
-			r.SetAttr("data", cfg.testData)
+		data := append([]string{}, testSrcs...)
+		data = append(data, cfg.testData...)
+		// When both a library and a test rule exist in the same directory,
+		// pull the library into the test's data so relative imports
+		// (./index.js, ./util.js, …) resolve to its compiled output.
+		if len(libSrcs) > 0 {
+			data = append(data, ":"+cfg.libraryName)
 		}
+		r.SetAttr("data", data)
 		if cfg.testEntryPoint != "" {
 			r.SetAttr("entry_point", cfg.testEntryPoint)
 		} else {
-			// Pick the first sorted .test.ts/.test.tsx as the default entry.
 			for _, s := range testSrcs {
 				if strings.HasSuffix(s, ".test.ts") || strings.HasSuffix(s, ".test.tsx") {
 					r.SetAttr("entry_point", s)
