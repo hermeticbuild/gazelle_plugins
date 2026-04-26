@@ -3,8 +3,11 @@ package ts
 // Default values applied when no directive overrides them. These match the
 // shape a "small typical" TS package emits with stock rules_ts/rules_js.
 const (
-	defaultLibraryName       = "lib"
-	defaultTestName          = "test"
+	// Empty default means "use the package's directory basename" — see
+	// resolveRuleNames in generate.go. This way //apps/web:web shortens to
+	// //apps/web, the most natural Bazel idiom.
+	defaultLibraryName       = ""
+	defaultTestName          = ""
 	defaultLibraryKind       = "ts_project"
 	defaultTestKind          = "js_test"
 	defaultNpmLinkPattern    = "//:node_modules/{pkg}"
@@ -51,6 +54,12 @@ type tsConfig struct {
 	// tsconfig: when set, every emitted ts_project gets this label as its
 	// `tsconfig` attr. Empty = unset.
 	tsconfig string
+
+	// transpiler: when set, emitted as the `transpiler` attr on every
+	// ts_project. rules_ts requires a transpiler selection; common values
+	// are `partial(@aspect_rules_ts//ts:defs.bzl%tsc)` (a .bzl call) or a
+	// custom macro name like `swc`.
+	transpiler string
 
 	// npmLinkPattern is the template used for npm package labels, e.g.
 	// `//:node_modules/{pkg}`. The literal `{pkg}` is replaced with the

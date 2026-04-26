@@ -1,0 +1,17 @@
+# Mirrors the host repo's .bazelrc — needed so rules_rs's experimental
+# Linux toolchains pick up the gnu.2.28 libc constraint.
+common --enable_platform_specific_config
+common:linux --host_platform=@gazelle_plugins//:local_gnu_platform
+
+build --show_result=0
+test --test_output=errors
+
+# Default ts_project to tsc transpiler — avoids having to set `transpiler`
+# on every rule. rules_ts errors at analysis time if no transpiler is
+# selected globally and the rule doesn't set one explicitly.
+common --@aspect_rules_ts//ts:default_to_tsc_transpiler=True
+
+# Run TypeScript test files directly via Node 22's --experimental-transform-types
+# — strips TS types at runtime so js_test can target a .ts entry_point without
+# precompiling. Requires Node ≥ 22.6.
+test --test_env=NODE_OPTIONS=--experimental-transform-types
