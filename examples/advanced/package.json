@@ -10,15 +10,15 @@
     "onlyBuiltDependencies": []
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-query": "^5.100.5",
     "lodash": "^4.17.0",
-    "react": "^18.0.0",
+    "react": "^19.2.5",
     "zod": "^3.0.0"
   },
   "devDependencies": {
-    "@types/lodash": "^4.0.0",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
     "vitest": "^1.0.0"
   }
 }
