@@ -1,6 +1,6 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("//tools:ts.bzl", "myorg_ts_library")
 
-ts_project(
+myorg_ts_library(
     name = "core",
     srcs = ["index.ts"],
     composite = True,
@@ -9,8 +9,5 @@ ts_project(
     source_map = True,
     tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
-    deps = [
-        "//:node_modules/@types/node",
-        "//:node_modules/zod",
-    ],
+    deps = ["//:node_modules/@types/node"],
 )
