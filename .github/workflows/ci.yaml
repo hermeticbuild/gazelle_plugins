@@ -39,7 +39,7 @@ jobs:
         os: ${{ fromJSON(needs.matrix.outputs.platforms) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@0.19.0
@@ -62,7 +62,7 @@ jobs:
         example: [basic, composite, graphql, advanced]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@0.19.0
