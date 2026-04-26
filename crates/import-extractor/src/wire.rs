@@ -1,0 +1,307 @@
+use crate::{python, ts};
+use import_extractor_proto::import_extractor as pb;
+use prost::Message;
+use rayon::prelude::*;
+use std::io::{Read, Write};
+
+pub fn encode_response(resp: pb::Response) -> Vec<u8> {
+    resp.encode_to_vec()
+}
+
+/// Read length-prefixed frames from `reader`, dispatch each, and write the
+/// length-prefixed response frame to `writer`. Returns when `reader` reaches
+/// EOF or `writer` errors. Used by `main` and by integration tests.
+pub fn process_stream<R: Read, W: Write>(mut reader: R, mut writer: W) -> std::io::Result<()> {
+    let mut stream = Vec::with_capacity(16 * 1024);
+    let mut buf = [0u8; 8 * 1024];
+
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            return Ok(());
+        }
+        stream.extend_from_slice(&buf[..n]);
+
+        loop {
+            if stream.len() < 4 {
+                break;
+            }
+            let len = u32::from_be_bytes([stream[0], stream[1], stream[2], stream[3]]) as usize;
+            if stream.len() < 4 + len {
+                break;
+            }
+
+            let frame = &stream[4..4 + len];
+            let response_bytes = dispatch(frame);
+            stream.drain(..4 + len);
+
+            writer.write_all(&(response_bytes.len() as u32).to_be_bytes())?;
+            writer.write_all(&response_bytes)?;
+            writer.flush()?;
+        }
+    }
+}
+
+/// Decode a request frame and produce the encoded response bytes.
+///
+/// Returns an error response (encoded) when the input bytes don't decode as a `Request`.
+pub fn dispatch(frame: &[u8]) -> Vec<u8> {
+    let req = match pb::Request::decode(frame) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("import_extractor: invalid request: {e}");
+            return encode_response(pb::Response {
+                id: 0,
+                data: Some(pb::response::Data::Error(pb::ResponseError {
+                    message: format!("invalid request: {e}"),
+                })),
+            });
+        }
+    };
+
+    let id = req.id;
+    let resp = match req.data {
+        Some(pb::request::Data::TsQuery(ts_req)) => handle_ts(id, ts_req),
+        Some(pb::request::Data::PyQuery(py_req)) => handle_python(id, py_req),
+        None => pb::Response {
+            id,
+            data: Some(pb::response::Data::Error(pb::ResponseError {
+                message: "missing request data".to_string(),
+            })),
+        },
+    };
+
+    encode_response(resp)
+}
+
+pub fn handle_ts(id: u32, req: pb::TsQueryRequest) -> pb::Response {
+    let imports: Vec<pb::TsImportByFile> = req
+        .files
+        .par_iter()
+        .filter_map(|file| match ts::extract_imports_from_file(file) {
+            Ok(import_paths) => Some(pb::TsImportByFile {
+                file: file.clone(),
+                import_paths,
+            }),
+            Err(e) => {
+                eprintln!("import_extractor: skipping {file}: {e}");
+                None
+            }
+        })
+        .collect();
+
+    pb::Response {
+        id,
+        data: Some(pb::response::Data::TsResult(pb::TsResponseResult {
+            imports,
+        })),
+    }
+}
+
+pub fn handle_python(id: u32, req: pb::PyQueryRequest) -> pb::Response {
+    let results: Vec<pb::PyFileOutput> = req
+        .files
+        .par_iter()
+        .filter_map(
+            |f| match python::extract_imports_from_file(&f.path, &f.rel_path) {
+                Ok(output) => Some(pb::PyFileOutput {
+                    file_name: output.file_name,
+                    modules: output
+                        .modules
+                        .into_iter()
+                        .map(|m| pb::PyModule {
+                            name: m.name,
+                            lineno: m.lineno,
+                            filepath: m.filepath,
+                            from: m.from,
+                            type_checking_only: m.type_checking_only,
+                        })
+                        .collect(),
+                    comments: output.comments,
+                    has_main: output.has_main,
+                }),
+                Err(e) => {
+                    eprintln!("import_extractor: skipping {}: {e}", f.path);
+                    None
+                }
+            },
+        )
+        .collect();
+
+    pb::Response {
+        id,
+        data: Some(pb::response::Data::PyResult(pb::PyResponseResult {
+            results,
+        })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_ts_request(id: u32, files: Vec<&str>) -> Vec<u8> {
+        pb::Request {
+            id,
+            data: Some(pb::request::Data::TsQuery(pb::TsQueryRequest {
+                files: files.into_iter().map(String::from).collect(),
+            })),
+        }
+        .encode_to_vec()
+    }
+
+    fn build_py_request(id: u32, files: Vec<(&str, &str)>) -> Vec<u8> {
+        pb::Request {
+            id,
+            data: Some(pb::request::Data::PyQuery(pb::PyQueryRequest {
+                files: files
+                    .into_iter()
+                    .map(|(p, r)| pb::PyFileSpec {
+                        path: p.into(),
+                        rel_path: r.into(),
+                    })
+                    .collect(),
+            })),
+        }
+        .encode_to_vec()
+    }
+
+    fn decode(bytes: &[u8]) -> pb::Response {
+        pb::Response::decode(bytes).expect("response decodes")
+    }
+
+    #[test]
+    fn dispatch_returns_error_for_garbage_frame() {
+        let resp = decode(&dispatch(&[0xff, 0xff, 0xff, 0xff]));
+        assert_eq!(resp.id, 0);
+        match resp.data {
+            Some(pb::response::Data::Error(e)) => assert!(e.message.starts_with("invalid request")),
+            _ => panic!("expected error variant"),
+        }
+    }
+
+    #[test]
+    fn dispatch_returns_error_when_data_oneof_is_missing() {
+        let req = pb::Request { id: 7, data: None }.encode_to_vec();
+        let resp = decode(&dispatch(&req));
+        assert_eq!(resp.id, 7);
+        match resp.data {
+            Some(pb::response::Data::Error(e)) => assert_eq!(e.message, "missing request data"),
+            _ => panic!("expected error variant"),
+        }
+    }
+
+    #[test]
+    fn dispatch_preserves_request_id_on_ts_query() {
+        let req = build_ts_request(42, vec![]);
+        let resp = decode(&dispatch(&req));
+        assert_eq!(resp.id, 42);
+        assert!(matches!(resp.data, Some(pb::response::Data::TsResult(_))));
+    }
+
+    #[test]
+    fn dispatch_preserves_request_id_on_py_query() {
+        let req = build_py_request(99, vec![]);
+        let resp = decode(&dispatch(&req));
+        assert_eq!(resp.id, 99);
+        assert!(matches!(resp.data, Some(pb::response::Data::PyResult(_))));
+    }
+
+    #[test]
+    fn handle_ts_skips_files_that_fail_to_read() {
+        let resp = handle_ts(
+            1,
+            pb::TsQueryRequest {
+                files: vec!["/nonexistent/file/that/cannot/be/read.ts".into()],
+            },
+        );
+        match resp.data {
+            Some(pb::response::Data::TsResult(r)) => assert!(r.imports.is_empty()),
+            _ => panic!("expected ts_result"),
+        }
+    }
+
+    #[test]
+    fn handle_ts_returns_imports_for_real_file() {
+        let dir = std::env::temp_dir().join("import_extractor_wire_test_ts");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.ts");
+        std::fs::write(&path, "import { x } from 'mod-a';\nimport 'mod-b';").unwrap();
+
+        let resp = handle_ts(
+            5,
+            pb::TsQueryRequest {
+                files: vec![path.to_string_lossy().into_owned()],
+            },
+        );
+        match resp.data {
+            Some(pb::response::Data::TsResult(r)) => {
+                assert_eq!(r.imports.len(), 1);
+                assert_eq!(r.imports[0].import_paths, vec!["mod-a", "mod-b"]);
+            }
+            _ => panic!("expected ts_result"),
+        }
+    }
+
+    #[test]
+    fn handle_python_skips_files_that_fail_to_read() {
+        let resp = handle_python(
+            2,
+            pb::PyQueryRequest {
+                files: vec![pb::PyFileSpec {
+                    path: "/nonexistent/file.py".into(),
+                    rel_path: "file.py".into(),
+                }],
+            },
+        );
+        match resp.data {
+            Some(pb::response::Data::PyResult(r)) => assert!(r.results.is_empty()),
+            _ => panic!("expected py_result"),
+        }
+    }
+
+    #[test]
+    fn handle_python_returns_modules_for_real_file() {
+        let dir = std::env::temp_dir().join("import_extractor_wire_test_py");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("m.py");
+        std::fs::write(&path, "import os\nfrom collections import OrderedDict\n").unwrap();
+
+        let resp = handle_python(
+            8,
+            pb::PyQueryRequest {
+                files: vec![pb::PyFileSpec {
+                    path: path.to_string_lossy().into_owned(),
+                    rel_path: "m.py".into(),
+                }],
+            },
+        );
+        match resp.data {
+            Some(pb::response::Data::PyResult(r)) => {
+                assert_eq!(r.results.len(), 1);
+                let names: Vec<&str> = r.results[0].modules.iter().map(|m| m.name.as_str()).collect();
+                assert!(names.contains(&"os"));
+                assert!(names.iter().any(|n| n.contains("OrderedDict")));
+            }
+            _ => panic!("expected py_result"),
+        }
+    }
+
+    #[test]
+    fn dispatch_full_roundtrip_ts() {
+        let dir = std::env::temp_dir().join("import_extractor_wire_test_rt");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("rt.ts");
+        std::fs::write(&path, "import 'lib-x';").unwrap();
+
+        let req = build_ts_request(13, vec![&path.to_string_lossy()]);
+        let resp = decode(&dispatch(&req));
+        assert_eq!(resp.id, 13);
+        match resp.data {
+            Some(pb::response::Data::TsResult(r)) => {
+                assert_eq!(r.imports[0].import_paths, vec!["lib-x"]);
+            }
+            _ => panic!("expected ts_result"),
+        }
+    }
+}

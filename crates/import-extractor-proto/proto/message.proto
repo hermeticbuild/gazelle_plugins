@@ -1,0 +1,68 @@
+syntax = "proto3";
+package import_extractor;
+
+message Request {
+  uint32 id = 1;
+  oneof data {
+    TsQueryRequest ts_query = 2;
+    PyQueryRequest py_query = 3;
+  }
+}
+
+message Response {
+  uint32 id = 1;
+  oneof data {
+    TsResponseResult ts_result = 2;
+    PyResponseResult py_result = 3;
+    ResponseError error = 4;
+  }
+}
+
+message ResponseError {
+  string message = 1;
+}
+
+// --- TypeScript ---
+
+message TsQueryRequest {
+  repeated string files = 1;
+}
+
+message TsResponseResult {
+  repeated TsImportByFile imports = 1;
+}
+
+message TsImportByFile {
+  string file = 1;
+  repeated string import_paths = 2;
+}
+
+// --- Python ---
+
+message PyQueryRequest {
+  repeated PyFileSpec files = 1;
+}
+
+message PyFileSpec {
+  string path = 1;
+  string rel_path = 2;
+}
+
+message PyResponseResult {
+  repeated PyFileOutput results = 1;
+}
+
+message PyFileOutput {
+  string file_name = 1;
+  repeated PyModule modules = 2;
+  repeated string comments = 3;
+  bool has_main = 4;
+}
+
+message PyModule {
+  string name = 1;
+  uint32 lineno = 2;
+  string filepath = 3;
+  string from = 4;
+  bool type_checking_only = 5;
+}

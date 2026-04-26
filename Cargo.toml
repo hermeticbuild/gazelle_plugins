@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/import-extractor",
+    "crates/import-extractor-proto",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+repository = "https://github.com/hermeticbuild/gazelle_plugins"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+
+[workspace.dependencies]
+# TypeScript parsing (oxc)
+oxc = { version = "0.127", features = ["ast_visit"] }
+oxc_allocator = "0.127"
+oxc_ast = "0.127"
+oxc_parser = "0.127"
+oxc_span = "0.127"
+
+# Proto / RPC
+# Pinned to 0.13.1 to match the prost runtime that rules_rs's rust_prost_library
+# generates against (its bundled rrprd repo). Mismatched versions produce
+# trait-path conflicts at link time.
+prost = "=0.13.1"
+prost-build = "=0.13.1"
+prost-types = "=0.13.1"
+tonic = "0.14"
+tonic-prost = "0.14"
+
+# Shared
+rayon = "1.10"
+serde = "1"
+serde_json = "1"
