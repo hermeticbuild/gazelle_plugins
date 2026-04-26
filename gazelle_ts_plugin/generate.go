@@ -37,9 +37,46 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 
+	// Hand-written js_binary rules in this BUILD that we manage `data` for.
+	// We never generate js_binary; we only piggyback on the user's existing
+	// rule, scan its entry_point/srcs for imports, and let Resolve set deps.
+	type jsBinaryRef struct {
+		name  string
+		files []string // package-relative TS files referenced by the rule
+	}
+	var jsBinaries []jsBinaryRef
+	if args.File != nil {
+		seen := make(map[string]bool, len(tsFiles))
+		for _, f := range tsFiles {
+			seen[f] = true
+		}
+		for _, r := range args.File.Rules {
+			if r.Kind() != KindJsBinary {
+				continue
+			}
+			ref := jsBinaryRef{name: r.Name()}
+			candidates := append([]string{r.AttrString("entry_point")}, r.AttrStrings("srcs")...)
+			for _, c := range candidates {
+				if c == "" || !isTypeScriptFile(c, cfg) {
+					continue
+				}
+				ref.files = append(ref.files, c)
+				full := filepath.Join(args.Dir, c)
+				if !seen[full] {
+					tsFiles = append(tsFiles, full)
+					seen[full] = true
+				}
+			}
+			if len(ref.files) > 0 {
+				jsBinaries = append(jsBinaries, ref)
+			}
+		}
+	}
+
 	var sourceImports, testImports []ImportStatement
+	allImports := map[string][]ImportStatement{}
 	if len(tsFiles) > 0 {
-		allImports, _ := l.extractImportsBatch(tsFiles)
+		allImports, _ = l.extractImportsBatch(tsFiles)
 		for _, f := range args.RegularFiles {
 			if !isTypeScriptFile(f, cfg) {
 				continue
@@ -54,7 +91,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 
-	if len(libSrcs) == 0 && len(testSrcs) == 0 {
+	if len(libSrcs) == 0 && len(testSrcs) == 0 && len(jsBinaries) == 0 {
 		return language.GenerateResult{}
 	}
 
@@ -117,6 +154,18 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			Imports:     sourceImports,
 			TestImports: testImports,
 		})
+	}
+
+	// Existing js_binary rules — emit a placeholder so Resolve runs against
+	// each, but don't set any attrs. The merge engine keeps the user's
+	// entry_point, srcs, env, etc.; Resolve only fills in `data`.
+	for _, jb := range jsBinaries {
+		var imps []ImportStatement
+		for _, f := range jb.files {
+			imps = append(imps, allImports[filepath.Join(args.Dir, f)]...)
+		}
+		genRules = append(genRules, rule.NewRule(KindJsBinary, jb.name))
+		genImports = append(genImports, ImportData{Imports: imps})
 	}
 
 	return language.GenerateResult{

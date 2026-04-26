@@ -26,6 +26,11 @@ import (
 //   - js_test uses `data` for everything (test source, npm packages, fixtures)
 //     and `entry_point` to pick the .js file to run. There is no `srcs` or
 //     `deps` attr.
+//   - js_binary is hand-written by the user (we never generate it). The
+//     plugin only fills in `data` based on what its entry_point/srcs import,
+//     so the user manages name/entry_point/env/etc. themselves.
+const KindJsBinary = "js_binary"
+
 var tsKinds = map[string]rule.KindInfo{
 	defaultLibraryKind: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
@@ -35,6 +40,13 @@ var tsKinds = map[string]rule.KindInfo{
 		},
 	},
 	defaultTestKind: {
+		NonEmptyAttrs:  map[string]bool{"name": true},
+		MergeableAttrs: map[string]bool{"data": true},
+		ResolveAttrs: map[string]bool{
+			"data": true,
+		},
+	},
+	KindJsBinary: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
 		MergeableAttrs: map[string]bool{"data": true},
 		ResolveAttrs: map[string]bool{
@@ -62,7 +74,7 @@ func (l *tsLang) Loads() []rule.LoadInfo {
 		},
 		{
 			Name:    "@aspect_rules_js//js:defs.bzl",
-			Symbols: []string{defaultTestKind},
+			Symbols: []string{defaultTestKind, KindJsBinary},
 		},
 	}
 }
