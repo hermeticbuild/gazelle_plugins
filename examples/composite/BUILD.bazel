@@ -1,5 +1,5 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
 npm_link_all_packages(name = "node_modules")
@@ -13,7 +13,12 @@ ts_config(
 # gazelle:ts_npm_link_pattern //:node_modules/{pkg}
 # gazelle:ts_tsconfig //:tsconfig
 
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_plugins//ts"],
+)
+
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+    gazelle = ":gazelle_bin",
 )

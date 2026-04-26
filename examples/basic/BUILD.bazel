@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
 # Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
@@ -16,9 +16,14 @@ ts_config(
 # gazelle:ts_npm_link_pattern //:node_modules/{pkg}
 # gazelle:ts_tsconfig //:tsconfig
 
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_plugins//ts"],
+)
+
 gazelle(
     name = "gazelle",
-    gazelle = "@gazelle_plugins//gazelle_ts_plugin:gazelle_ts",
+    gazelle = ":gazelle_bin",
 )
 
 ts_project(

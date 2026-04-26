@@ -1,6 +1,6 @@
 # examples
 
-Each subdirectory is a self-contained Bazel workspace exercising `gazelle_ts_plugin` against a different scenario. They escalate in complexity:
+Each subdirectory is a self-contained Bazel workspace exercising the `ts` plugin against a different scenario. They escalate in complexity:
 
 | Example | What it shows |
 |---|---|
