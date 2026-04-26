@@ -46,18 +46,18 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_project_references` | `true` | Emits `composite = True` and the resolved `references` attr. |
 | `ts_tsconfig` | _(unset)_ | Set to a Bazel label to emit `tsconfig` on every library. |
 | `ts_npm_link_pattern` | `//:node_modules/{pkg}` | Template; `{pkg}` is replaced with the resolved package name. |
-| `ts_subpath_import` | _(from `package.json` `imports`)_ | Repeatable `pattern=target` entries; merged on top of `package.json`. |
+| `ts_generated_package` | _(from `package.json` `imports`)_ | Repeatable `pattern=target` entries; maps a generated/synthetic package namespace to a Bazel label. Merged on top of `package.json`. |
 | `ts_test_data` | _(empty)_ | Repeatable; appended to every test rule's `data`. |
 | `ts_test_entry_point` | _first matching `*.test.ts*`_ | Override the entry point picked for tests. |
 
-### `ts_subpath_import` examples
+### `ts_generated_package` examples
 
 ```
 # Map @myrepo_generated/* directly to a Bazel label
-# gazelle:ts_subpath_import @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
 
 # Map a Node.js subpath import (#packages/*) to a workspace path
-# gazelle:ts_subpath_import #packages/*=./packages/*
+# gazelle:ts_generated_package #packages/*=./packages/*
 ```
 
 The first form (target starts with `//` or `@`) is taken as a Bazel label literal. The second form (relative path) is treated as a workspace path; the plugin walks the rule index to find the longest matching package.

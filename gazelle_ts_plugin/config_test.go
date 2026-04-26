@@ -91,20 +91,20 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	}
 }
 
-func TestApplyDirective_SubpathImport(t *testing.T) {
+func TestApplyDirective_GeneratedPackage(t *testing.T) {
 	cfg := newTsConfig()
 	applyDirective(cfg, rule.Directive{
-		Key:   directiveSubpathImport,
+		Key:   directiveGeneratedPackage,
 		Value: "@myrepo_generated/*=//:node_modules/@myrepo_generated/*",
 	})
-	got := cfg.subpathOverrides["@myrepo_generated/*"]
+	got := cfg.generatedPackages["@myrepo_generated/*"]
 	if got != "//:node_modules/@myrepo_generated/*" {
-		t.Errorf("subpath override = %q", got)
+		t.Errorf("generated package mapping = %q", got)
 	}
 
 	// Malformed (missing `=`) is silently ignored.
-	applyDirective(cfg, rule.Directive{Key: directiveSubpathImport, Value: "noequals"})
-	if _, ok := cfg.subpathOverrides["noequals"]; ok {
+	applyDirective(cfg, rule.Directive{Key: directiveGeneratedPackage, Value: "noequals"})
+	if _, ok := cfg.generatedPackages["noequals"]; ok {
 		t.Errorf("malformed directive accepted")
 	}
 }
@@ -113,12 +113,12 @@ func TestClone_Independent(t *testing.T) {
 	parent := newTsConfig()
 	parent.libraryName = "lib"
 	parent.testPatterns = append(parent.testPatterns, "*.spec.ts")
-	parent.subpathOverrides["#foo/*"] = "//foo"
+	parent.generatedPackages["#foo/*"] = "//foo"
 
 	child := parent.clone()
 	child.libraryName = "src"
 	child.testPatterns = append(child.testPatterns, "**/__tests__/**")
-	child.subpathOverrides["#bar/*"] = "//bar"
+	child.generatedPackages["#bar/*"] = "//bar"
 
 	if parent.libraryName != "lib" {
 		t.Errorf("parent libraryName mutated: %q", parent.libraryName)
@@ -126,8 +126,8 @@ func TestClone_Independent(t *testing.T) {
 	if contains(parent.testPatterns, "**/__tests__/**") {
 		t.Errorf("parent testPatterns mutated: %v", parent.testPatterns)
 	}
-	if _, ok := parent.subpathOverrides["#bar/*"]; ok {
-		t.Errorf("parent subpathOverrides mutated")
+	if _, ok := parent.generatedPackages["#bar/*"]; ok {
+		t.Errorf("parent generatedPackages mutated")
 	}
 }
 

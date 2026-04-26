@@ -21,7 +21,7 @@ const (
 	directiveProjectRefs     = "ts_project_references"
 	directiveTsconfig        = "ts_tsconfig"
 	directiveNpmLinkPattern  = "ts_npm_link_pattern"
-	directiveSubpathImport   = "ts_subpath_import"
+	directiveGeneratedPackage = "ts_generated_package"
 	directiveTestData        = "ts_test_data"
 	directiveTestEntryPoint  = "ts_test_entry_point"
 )
@@ -47,7 +47,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveProjectRefs,
 		directiveTsconfig,
 		directiveNpmLinkPattern,
-		directiveSubpathImport,
+		directiveGeneratedPackage,
 		directiveTestData,
 		directiveTestEntryPoint,
 	}
@@ -74,9 +74,9 @@ func (l *tsLang) Configure(c *config.Config, rel string, f *rule.File) {
 
 	if rel == "" {
 		l.loadPackageJSONDeps(c.RepoRoot)
-		// Merge directive-supplied subpath overrides on top of the package.json
-		// imports map. Directives win over package.json on key collisions.
-		for k, v := range cfg.subpathOverrides {
+		// Merge directive-supplied generated-package mappings on top of the
+		// package.json imports map. Directives win on key collisions.
+		for k, v := range cfg.generatedPackages {
 			l.subpathImportsMap[k] = v
 		}
 	}
@@ -123,13 +123,15 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		if val != "" {
 			cfg.npmLinkPattern = val
 		}
-	case directiveSubpathImport:
+	case directiveGeneratedPackage:
 		// Format: `<pattern>=<target>`, e.g. `@myrepo_generated/*=//:node_modules/@myrepo_generated/*`.
+		// Maps a synthetic / generated package namespace to a Bazel label so
+		// the resolver can emit a dep without the package being in package.json.
 		if eq := strings.Index(val, "="); eq > 0 {
 			pattern := strings.TrimSpace(val[:eq])
 			target := strings.TrimSpace(val[eq+1:])
 			if pattern != "" && target != "" {
-				cfg.subpathOverrides[pattern] = target
+				cfg.generatedPackages[pattern] = target
 			}
 		}
 	case directiveTestData:

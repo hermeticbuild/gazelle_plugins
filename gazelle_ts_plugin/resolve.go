@@ -115,7 +115,7 @@ func (l *tsLang) resolveImportsToDeps(
 		}
 
 		// Subpath imports — anything matching a key in subpathImportsMap
-		// (sourced from package.json `imports` or ts_subpath_import).
+		// (sourced from package.json `imports` or ts_generated_package).
 		if target := l.resolveSubpathImport(path, from, ix); target != "" {
 			result.internal = append(result.internal, target)
 			continue
