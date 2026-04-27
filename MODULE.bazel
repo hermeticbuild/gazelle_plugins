@@ -14,7 +14,7 @@ bazel_dep(name = "gazelle", version = "0.50.0")
 # constraints from @llvm//constraints/libc (e.g. gnu.2.28). Bring in the llvm
 # module just for those constraint definitions; we do NOT register any LLVM
 # toolchain — we only use the constraint labels on a custom host platform
-# (see //:local_gnu_platform).
+# (see //platforms:local_gnu).
 bazel_dep(name = "llvm", version = "0.7.3")
 
 # rules_rust facade — exposes @rules_rust at the top level so BUILD files and

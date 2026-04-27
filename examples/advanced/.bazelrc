@@ -1,7 +1,7 @@
 # Mirrors the host repo's .bazelrc — needed so rules_rs's Linux toolchains
 # pick up the gnu.2.28 libc constraint.
 common --enable_platform_specific_config
-common:linux --host_platform=@gazelle_ts//:local_gnu_platform
+common:linux --host_platform=@gazelle_ts//platforms:local_gnu
 
 build --show_result=0
 test --test_output=errors
