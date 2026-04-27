@@ -51,6 +51,11 @@ jobs:
       - name: bazel test //...
         run: bazelisk test //...
 
+      # Catch breakage in the --config=opt build path (LTO, panic=abort
+      # propagation, codegen-units=1) before it surfaces in release.yaml.
+      - name: bazel build --config=opt //crates/import_extractor:bin
+        run: bazelisk build --config=opt //crates/import_extractor:bin
+
   # Examples are linux-only — they exercise the BUILD-generation path and
   # don't add platform-specific coverage worth the macOS runner cost.
   examples:

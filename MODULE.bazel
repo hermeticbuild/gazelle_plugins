@@ -38,8 +38,14 @@ toolchains.toolchain(
 )
 use_repo(toolchains, "default_rust_toolchains")
 
+# Rust + hermetic C/C++ (clang/lld) toolchains. The C++ toolchain links the
+# rust binary; without it Bazel falls back to the host's autodetected cc, which
+# works for our deps today but couples dev builds to whatever clang the host
+# has. dev_dependency so a consumer's own pin doesn't conflict — we only need
+# these when we're root building.
 register_toolchains(
     "@default_rust_toolchains//:all",
+    "@llvm//toolchain:all",
     dev_dependency = True,
 )
 
