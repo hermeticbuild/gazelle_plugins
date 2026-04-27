@@ -55,6 +55,13 @@ use_repo(rules_rust_prost, "rules_rust_prost")
 
 register_toolchains("@rules_rust_prost//:default_prost_toolchain")
 
+# Pre-built import-extractor binary, downloaded per-platform from the GH
+# release matching the version below. Consumers (BCR or otherwise) can point
+# this at a custom CDN via `import_extractor.toolchain(repositories = {...})`.
+import_extractor = use_extension("//import_extractor:extensions.bzl", "import_extractor")
+import_extractor.toolchain()
+use_repo(import_extractor, "import_extractor")
+
 # Go toolchain + module deps for the gazelle plugin.
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.12")

@@ -26,7 +26,10 @@ go_library(
         "import_extractor.go",
         "resolve.go",
     ],
-    data = ["//crates/import-extractor:bin"],
+    # Pre-built binary downloaded by //import_extractor:extensions.bzl. Keeps
+    # the BCR surface free of rules_rs as a transitive dep — consumers get the
+    # rust binary from a GH release rather than building it from source.
+    data = ["@import_extractor//:bin"],
     importpath = "github.com/hermeticbuild/gazelle_plugins/ts",
     visibility = ["//visibility:public"],
     deps = [

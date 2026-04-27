@@ -16,6 +16,29 @@ local_path_override(
     path = "../..",
 )
 
+# Pre-built import-extractor binary, downloaded from the GH release matching
+# the pinned version. The extension already runs transitively via
+# gazelle_plugins' own MODULE.bazel, but a consumer can pin or override it
+# explicitly here:
+#
+#   import_extractor.toolchain(version = "0.1.0")
+#
+#   import_extractor.toolchain(
+#       repositories = {
+#           "0.1.0.darwin-arm64": [
+#               "https://my.cdn/import_extractor-darwin-arm64",
+#               "240dcb1ff7dd0d6a488394365b78795f43bc8a4502bd062dfc29db953cd8cae2",
+#           ],
+#           "0.1.0.linux-x64": [
+#               "https://my.cdn/import_extractor-linux-x64",
+#               "97cd14ff983ee99395cd5f996a8917e3093d943c3f540acbee822662fe8e1531",
+#           ],
+#       },
+#   )
+import_extractor = use_extension("@gazelle_plugins//import_extractor:extensions.bzl", "import_extractor")
+import_extractor.toolchain(version = "0.1.0")
+use_repo(import_extractor, "import_extractor")
+
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
 node.toolchain(node_version = "22.11.0")
 
