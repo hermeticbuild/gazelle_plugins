@@ -39,11 +39,19 @@ toolchains.toolchain(
 use_repo(toolchains, "default_rust_toolchains")
 
 # Rust toolchain only — we deliberately do NOT register @llvm//toolchain:all
-# (rules_rs's paved path) because rules_go's go_test produces non-PIC objects
-# that lld rejects with "relocation R_X86_64_64 cannot be used against symbol
-# ...; recompile with -fPIC". Bazel uses a single cc toolchain per platform,
-# so registering LLVM forces go links through lld too. Falling back to the
+# (rules_rs's paved path) because rules_go's go_test fails to link against
+# lld with "relocation R_X86_64_64 cannot be used against symbol ...;
+# recompile with -fPIC". Bazel uses a single cc toolchain per platform, so
+# registering LLVM forces go links through lld too. Falling back to the
 # host's autodetected cc keeps both rust and go happy.
+#
+# Per dzbarsky (rules_rs maintainer) on PR #32: this is a Go compiler bug
+# fixed upstream and shipping in Go 1.27. Until then, a workaround exists at
+# https://github.com/hermeticbuild/hermetic-llvm/blob/main/e2e/wasm/MODULE.bazel#L15-L39
+# — archive_override rules_go to a branch with experimental_build_compiler_from_source
+# and patch the Go toolchain with the upstream cherry-pick, plus a gazelle
+# pure-mode patch. Too invasive for the size of our repo; revisit when Go
+# 1.27 lands.
 register_toolchains(
     "@default_rust_toolchains//:all",
     dev_dependency = True,
