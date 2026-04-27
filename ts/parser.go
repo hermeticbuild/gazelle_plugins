@@ -8,15 +8,11 @@ type ImportStatement struct {
 	SourceFile string // file containing the import (e.g., "packages/foo/src/index.ts")
 }
 
-// extractImportsBatch sends a batch of file paths to the Rust subprocess
-// (one round-trip total) and returns the parsed imports keyed by file path.
-// Per-file rather than per-call batching keeps Rust's rayon parallelism alive.
+// extractImportsBatch sends a batch of file paths through the cgo FFI and
+// returns the parsed imports keyed by file path. Per-call batching keeps
+// Rust's rayon parallelism alive across all files in the batch.
 func (l *tsLang) extractImportsBatch(filePaths []string) (map[string][]ImportStatement, error) {
-	if l.parser == nil {
-		return nil, nil
-	}
-
-	result, err := l.parser.ExtractImports(filePaths)
+	result, err := extractImports(filePaths)
 	if err != nil {
 		return nil, err
 	}

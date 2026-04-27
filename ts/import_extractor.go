@@ -1,13 +1,9 @@
-// import_extractor.go: cgo client for the in-process import-extractor library.
+// Package-internal cgo bridge to the Rust import_extractor staticlib.
 //
-// The Rust crate at //crates/import_extractor exposes a C ABI (ie_dispatch /
-// ie_free) that wraps wire::dispatch. We link the staticlib into this
-// go_library and call it directly via cgo — no subprocess, no stdin/stdout
-// frames, no runfiles binary lookup.
-//
-// Wire format is unchanged: each call marshals a pb.Request, hands the bytes
-// to ie_dispatch, and unmarshals the response bytes that come back. The Rust
-// side allocates the response buffer; we release it with ie_free.
+// The crate at //crates/import_extractor exposes a 2-function C ABI
+// (ie_dispatch / ie_free) wrapping the protobuf wire dispatcher. We marshal a
+// Request, hand the bytes to ie_dispatch, unmarshal the Response, and free
+// the buffer the Rust side allocated.
 package ts
 
 /*
@@ -26,7 +22,6 @@ import "C"
 
 import (
 	"fmt"
-	"sync"
 	"unsafe"
 
 	pb "github.com/hermeticbuild/gazelle_ts/ts/proto"
@@ -34,33 +29,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ImportExtractor is a thin handle around the cgo dispatch entry point. We
-// keep the type so call sites that hold an *ImportExtractor don't change.
-// All methods are serialized via the mutex because rayon parallelism inside
-// Rust already saturates cores; concurrent cgo calls would just contend.
-type ImportExtractor struct {
-	mu     sync.Mutex
-	nextID uint32
-}
-
-// newImportExtractor returns a usable handle. There's no subprocess to start
-// (the Rust code is linked in), so this never fails.
-func newImportExtractor() (*ImportExtractor, error) {
-	return &ImportExtractor{}, nil
-}
-
-// Close is a no-op — kept so the lifecycle manager's call site is unchanged.
-func (p *ImportExtractor) Close() error { return nil }
-
-// ExtractImports sends a batch of file paths and returns parsed imports keyed
+// extractImports sends a batch of file paths and returns parsed imports keyed
 // by file path. Files that fail to parse are silently dropped by the Rust side.
-func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.nextID++
+func extractImports(files []string) (map[string][]string, error) {
 	req := &pb.Request{
-		Id: p.nextID,
 		Data: &pb.Request_TsQuery{
 			TsQuery: &pb.TsQueryRequest{Files: files},
 		},
@@ -83,7 +55,6 @@ func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, e
 	}
 }
 
-// dispatch marshals req, calls into Rust, and unmarshals the response.
 func dispatch(req *pb.Request) (*pb.Response, error) {
 	reqBytes, err := proto.Marshal(req)
 	if err != nil {

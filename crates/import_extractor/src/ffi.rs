@@ -1,18 +1,14 @@
-// ffi.rs -- C ABI wrapper around wire::dispatch.
+// ffi.rs -- C ABI for cgo callers.
 //
-// The Go gazelle plugin calls these via cgo. We keep the FFI surface to two
-// functions:
+// Two functions:
 //
 //   ie_dispatch(req_ptr, req_len, *out_resp_ptr, *out_resp_len)
-//     Decodes the request bytes as a protobuf Request, dispatches, encodes
-//     the Response, and returns ownership of the encoded bytes via the out
-//     parameters. The caller must release them with ie_free.
+//     Decodes a protobuf Request, dispatches, encodes the Response, and hands
+//     the encoded bytes back via the out parameters. The caller owns them
+//     until ie_free.
 //
 //   ie_free(ptr, len)
-//     Releases bytes previously returned by ie_dispatch.
-//
-// The wire encoding (protobuf via prost) is the same as the subprocess
-// transport — only the carrier changed.
+//     Releases bytes returned by ie_dispatch.
 
 use crate::wire;
 use std::slice;
