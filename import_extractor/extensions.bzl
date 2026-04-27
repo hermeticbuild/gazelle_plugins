@@ -3,7 +3,7 @@
 Default usage (in a consumer's MODULE.bazel):
 
     import_extractor = use_extension(
-        "@gazelle_plugins//import_extractor:extensions.bzl",
+        "@gazelle_ts//import_extractor:extensions.bzl",
         "import_extractor",
     )
     import_extractor.toolchain()
@@ -36,7 +36,7 @@ load(":repositories.bzl", "DEFAULT_VERSION", "import_extractor_repo")
 
 def _import_extractor_impl(module_ctx):
     # Collect tags across modules. The root module's tag wins over a
-    # transitive (gazelle_plugins') one when names collide — so a consumer
+    # transitive (gazelle_ts') one when names collide — so a consumer
     # who pins `version` overrides the default we ship.
     selected = {}
     for mod in module_ctx.modules:

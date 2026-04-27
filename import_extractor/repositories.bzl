@@ -18,21 +18,21 @@ regardless of bzlmod canonicalization.
 IMPORT_EXTRACTOR_VERSIONS = {
     "0.1.1": {
         "darwin-arm64": {
-            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-darwin-arm64",
+            "url": "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.1/import_extractor-darwin-arm64",
             "sha256": "c22df4be91126f2739bf1f1cba55bd922eaa6ded78d8a5d40aa8728cbd5c9fb7",
         },
         "linux-x64": {
-            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-linux-x64",
+            "url": "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.1/import_extractor-linux-x64",
             "sha256": "74954c35702d251baf8e8f317390b33a0245f53e4c973f4347022198927ea4af",
         },
     },
     "0.1.0": {
         "darwin-arm64": {
-            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.0/import_extractor-darwin-arm64",
+            "url": "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.0/import_extractor-darwin-arm64",
             "sha256": "240dcb1ff7dd0d6a488394365b78795f43bc8a4502bd062dfc29db953cd8cae2",
         },
         "linux-x64": {
-            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.0/import_extractor-linux-x64",
+            "url": "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.0/import_extractor-linux-x64",
             "sha256": "97cd14ff983ee99395cd5f996a8917e3093d943c3f540acbee822662fe8e1531",
         },
     },

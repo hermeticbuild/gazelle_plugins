@@ -13,4 +13,4 @@ tasks:
     platform: ${{ platform }}
     bazel: ${{ bazel }}
     build_targets:
-      - "@gazelle_plugins//ts/..."
+      - "@gazelle_ts//ts/..."

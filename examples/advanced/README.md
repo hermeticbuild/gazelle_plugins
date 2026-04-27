@@ -45,7 +45,7 @@ bazel test //...
 
 | File | What it sets up |
 |---|---|
-| [`MODULE.bazel`](MODULE.bazel) | `aspect_rules_js`, `aspect_rules_ts`, `rules_nodejs`, `npm_translate_lock`, `rules_ts_ext.deps()`. Pins Node 22.11 and a local override on the parent `gazelle_plugins` repo. |
+| [`MODULE.bazel`](MODULE.bazel) | `aspect_rules_js`, `aspect_rules_ts`, `rules_nodejs`, `npm_translate_lock`, `rules_ts_ext.deps()`. Pins Node 22.11 and a local override on the parent `gazelle_ts` repo. |
 | [`.bazelrc`](.bazelrc) | `--@aspect_rules_ts//ts:default_to_tsc_transpiler=True` so every `ts_project` defaults to tsc; `--test_env=NODE_OPTIONS=--experimental-transform-types` so `js_test` can run `.ts` files directly. |
 | [`tsconfig.json`](tsconfig.json) | `composite`, `declaration`, `declarationMap`, `sourceMap` on (matching the plugin's emitted attrs), `paths` mirroring `package.json` `imports`. |
 | [`BUILD.bazel`](BUILD.bazel) | `npm_link_all_packages` (pnpm-driven), `npm_link_package` for the synthetic package, gazelle directives (`ts_npm_link_pattern`, `ts_tsconfig`, `ts_generated_package`). |

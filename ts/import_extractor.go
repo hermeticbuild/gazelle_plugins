@@ -18,7 +18,7 @@ import (
 	"os/exec"
 	"sync"
 
-	pb "github.com/hermeticbuild/gazelle_plugins/ts/proto"
+	pb "github.com/hermeticbuild/gazelle_ts/ts/proto"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	"google.golang.org/protobuf/proto"
@@ -68,7 +68,7 @@ func newImportExtractor() (*ImportExtractor, error) {
 //     CI cache). A non-existent path is logged and the lookup continues.
 //  2. Bazel runfiles — under the apparent repo created by the
 //     //import_extractor:extensions.bzl module extension (or, in dev,
-//     a source-built path inside gazelle_plugins). Tries each in order.
+//     a source-built path inside gazelle_ts). Tries each in order.
 //  3. $PATH — looks for an `import_extractor` executable. Picks up a
 //     `cargo install`-style global install or anything dropped on PATH by
 //     a developer's environment manager.
@@ -88,7 +88,7 @@ func findImportExtractorBinary() string {
 	// target as `data` directly.
 	for _, p := range []string{
 		"import_extractor/import_extractor",
-		"gazelle_plugins/crates/import-extractor/bin",
+		"gazelle_ts/crates/import-extractor/bin",
 	} {
 		if bin, err := runfiles.Rlocation(p); err == nil {
 			if _, err := os.Stat(bin); err == nil {

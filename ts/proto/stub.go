@@ -1,7 +1,7 @@
 // stub.go is hand-written Go that mirrors the public surface of the
 // Bazel-generated `go_proto_library` output. It exists only so that
 // `go build`, `go mod tidy`, and `gopls` can resolve the import path
-// `github.com/hermeticbuild/gazelle_plugins/ts/proto` outside
+// `github.com/hermeticbuild/gazelle_ts/ts/proto` outside
 // of Bazel.
 //
 // At Bazel build time, the real types come from

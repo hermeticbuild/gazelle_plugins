@@ -5,7 +5,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 #
 #     gazelle_binary(
 #         name = "gazelle_bin",
-#         languages = ["@gazelle_plugins//ts"],
+#         languages = ["@gazelle_ts//ts"],
 #     )
 #
 # That keeps the linked binary surface in the consumer's hands (so multiple
@@ -30,7 +30,7 @@ go_library(
     # the BCR surface free of rules_rs as a transitive dep — consumers get the
     # rust binary from a GH release rather than building it from source.
     data = ["@import_extractor//:bin"],
-    importpath = "github.com/hermeticbuild/gazelle_plugins/ts",
+    importpath = "github.com/hermeticbuild/gazelle_ts/ts",
     visibility = ["//visibility:public"],
     deps = [
         "//ts/proto:import_extractor_go_proto",

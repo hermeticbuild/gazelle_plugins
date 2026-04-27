@@ -12,7 +12,7 @@ just download the host-matching binary at fetch time.
 
 ```starlark
 # MODULE.bazel
-import_extractor = use_extension("@gazelle_plugins//import_extractor:extensions.bzl", "import_extractor")
+import_extractor = use_extension("@gazelle_ts//import_extractor:extensions.bzl", "import_extractor")
 import_extractor.toolchain()
 use_repo(import_extractor, "import_extractor")
 ```

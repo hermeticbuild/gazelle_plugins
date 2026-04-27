@@ -1,5 +1,5 @@
 {
-    "homepage": "https://github.com/hermeticbuild/gazelle_plugins",
+    "homepage": "https://github.com/hermeticbuild/gazelle_ts",
     "maintainers": [
         {
             "name": "Long Ho",
@@ -12,7 +12,7 @@
             "github": "dzbarsky"
         }
     ],
-    "repository": ["github:hermeticbuild/gazelle_plugins"],
+    "repository": ["github:hermeticbuild/gazelle_ts"],
     "versions": [],
     "yanked_versions": {}
 }

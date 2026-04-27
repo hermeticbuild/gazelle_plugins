@@ -30,7 +30,7 @@ ts_config(
 
 gazelle_binary(
     name = "gazelle_bin",
-    languages = ["@gazelle_plugins//ts"],
+    languages = ["@gazelle_ts//ts"],
 )
 
 gazelle(

@@ -21,7 +21,7 @@ fi
 # {TAG} (with "v") in the URL — mirror both. The tarball *file* is named with
 # {TAG}; the directory *inside* uses {VERSION}.
 VERSION="${TAG#v}"
-MODULE=gazelle_plugins
+MODULE=gazelle_ts
 PREFIX="${MODULE}-${VERSION}"
 ARCHIVE="${MODULE}-${TAG}.tar.gz"
 

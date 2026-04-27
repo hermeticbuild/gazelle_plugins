@@ -10,6 +10,6 @@ Each subdirectory is a self-contained Bazel workspace exercising the `ts` plugin
 | [`advanced/`](advanced) | Everything in `composite` plus a Bazel-generated synthetic npm package (genrule + `npm_package` + `npm_link_package`) wired through the `# gazelle:ts_generated_package` directive. |
 | [`custom-extractor/`](custom-extractor) | Same shape as `basic`, but wires the `import_extractor` module extension with explicit `repositories = {...}` URL/SHA256 overrides — the pattern for mirroring the binary on an internal CDN or shipping a pre-release. |
 
-Each workspace points its `MODULE.bazel` at the parent `gazelle_plugins` repo via `local_path_override`, so changes to the plugin's Go source apply on the next `bazel run //:gazelle` without any release dance.
+Each workspace points its `MODULE.bazel` at the parent `gazelle_ts` repo via `local_path_override`, so changes to the plugin's Go source apply on the next `bazel run //:gazelle` without any release dance.
 
 CI runs `bazel test //...` and a `gazelle update -mode=diff` idempotency check in every example on linux-x86_64 + macos-arm64.
