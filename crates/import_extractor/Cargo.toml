@@ -6,9 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[[bin]]
-name = "import_extractor"
-path = "src/main.rs"
+[lib]
+# staticlib: linked into the gazelle plugin's go_library via cgo.
+# rlib: needed for `cargo test` and the rlib variant in BUILD.bazel.
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 # TypeScript parsing (oxc)

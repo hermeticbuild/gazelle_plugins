@@ -52,9 +52,11 @@ jobs:
         run: bazelisk test //...
 
       # Catch breakage in the --config=opt build path (LTO, panic=abort
-      # propagation, codegen-units=1) before it surfaces in release.yaml.
-      - name: bazel build --config=opt //crates/import_extractor:bin
-        run: bazelisk build --config=opt //crates/import_extractor:bin
+      # propagation, codegen-units=1) on PR runs. The staticlib is what
+      # ts/ts links against via cgo, so this exercises the same opt flags
+      # consumers would see when building gazelle_binary --config=opt.
+      - name: bazel build --config=opt //crates/import_extractor:import_extractor_static
+        run: bazelisk build --config=opt //crates/import_extractor:import_extractor_static
 
   # Examples are linux-only — they exercise the BUILD-generation path and
   # don't add platform-specific coverage worth the macOS runner cost.
@@ -64,7 +66,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [basic, composite, graphql, advanced, custom-extractor]
+        example: [basic, composite, graphql, advanced]
 
     steps:
       - uses: actions/checkout@v6

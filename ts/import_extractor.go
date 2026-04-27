@@ -1,119 +1,56 @@
-// import_extractor.go: Go client for the import-extractor Rust subprocess.
+// import_extractor.go: cgo client for the in-process import-extractor library.
 //
-// The wire format is length-prefixed protobuf frames:
+// The Rust crate at //crates/import_extractor exposes a C ABI (ie_dispatch /
+// ie_free) that wraps wire::dispatch. We link the staticlib into this
+// go_library and call it directly via cgo — no subprocess, no stdin/stdout
+// frames, no runfiles binary lookup.
 //
-//	[4-byte big-endian u32 length][protobuf payload of that length]
-//
-// Request and Response are oneof-wrapped (see crates/import_extractor/proto).
-// Each call to ExtractImports sends a single TsQueryRequest variant and reads
-// back exactly one TsResponseResult (or an error variant).
+// Wire format is unchanged: each call marshals a pb.Request, hands the bytes
+// to ie_dispatch, and unmarshals the response bytes that come back. The Rust
+// side allocates the response buffer; we release it with ie_free.
 package ts
 
+/*
+#include <stddef.h>
+#include <stdint.h>
+
+void ie_dispatch(
+    const uint8_t *req_ptr,
+    size_t req_len,
+    uint8_t **out_resp_ptr,
+    size_t *out_resp_len);
+
+void ie_free(uint8_t *ptr, size_t len);
+*/
+import "C"
+
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
-	"log"
-	"os"
-	"os/exec"
 	"sync"
+	"unsafe"
 
 	pb "github.com/hermeticbuild/gazelle_ts/ts/proto"
 
-	"github.com/bazelbuild/rules_go/go/runfiles"
 	"google.golang.org/protobuf/proto"
 )
 
-// ImportExtractor owns a long-lived import-extractor subprocess. All methods are
-// serialized via the mutex because there's a single stdin/stdout pair.
+// ImportExtractor is a thin handle around the cgo dispatch entry point. We
+// keep the type so call sites that hold an *ImportExtractor don't change.
+// All methods are serialized via the mutex because rayon parallelism inside
+// Rust already saturates cores; concurrent cgo calls would just contend.
 type ImportExtractor struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.Reader
 	mu     sync.Mutex
 	nextID uint32
 }
 
-// newImportExtractor locates the binary via Bazel runfiles and starts it. Stderr
-// is forwarded to ours so panics and skipped-file warnings are visible.
+// newImportExtractor returns a usable handle. There's no subprocess to start
+// (the Rust code is linked in), so this never fails.
 func newImportExtractor() (*ImportExtractor, error) {
-	binPath := findImportExtractorBinary()
-	if binPath == "" {
-		return nil, fmt.Errorf("import-extractor binary not found in runfiles")
-	}
-
-	cmd := exec.Command(binPath)
-	cmd.Stderr = os.Stderr
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, fmt.Errorf("stdin pipe: %w", err)
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("stdout pipe: %w", err)
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start %s: %w", binPath, err)
-	}
-
-	return &ImportExtractor{cmd: cmd, stdin: stdin, stdout: stdout}, nil
+	return &ImportExtractor{}, nil
 }
 
-// findImportExtractorBinary resolves the import-extractor binary path. Lookup order,
-// highest priority first:
-//
-//  1. $IMPORT_EXTRACTOR_BIN — explicit absolute path. Use this when shipping
-//     a prebuilt binary outside of Bazel (release artifact, vendored tool,
-//     CI cache). A non-existent path is logged and the lookup continues.
-//  2. Bazel runfiles — under the apparent repo created by the
-//     //import_extractor:extensions.bzl module extension (or, in dev,
-//     a source-built path inside gazelle_ts). Tries each in order.
-//  3. $PATH — looks for an `import_extractor` executable. Picks up a
-//     `cargo install`-style global install or anything dropped on PATH by
-//     a developer's environment manager.
-//
-// Returns "" if none match; callers log a warning and skip parsing rather
-// than aborting the gazelle run.
-func findImportExtractorBinary() string {
-	if bin := os.Getenv("IMPORT_EXTRACTOR_BIN"); bin != "" {
-		if _, err := os.Stat(bin); err == nil {
-			return bin
-		}
-		log.Printf("ts: IMPORT_EXTRACTOR_BIN=%q does not exist; trying Bazel runfiles + $PATH", bin)
-	}
-
-	// Apparent repo created by the import_extractor module extension's aggregator.
-	// Fallback path covers source-built dev workflows that still wire the rust
-	// target as `data` directly.
-	for _, p := range []string{
-		"import_extractor/import_extractor",
-		"gazelle_ts/crates/import_extractor/bin",
-	} {
-		if bin, err := runfiles.Rlocation(p); err == nil {
-			if _, err := os.Stat(bin); err == nil {
-				return bin
-			}
-		}
-	}
-
-	if bin, err := exec.LookPath("import_extractor"); err == nil {
-		return bin
-	}
-
-	return ""
-}
-
-// Close shuts down the subprocess by closing stdin and waiting for exit.
-func (p *ImportExtractor) Close() error {
-	if p.stdin != nil {
-		p.stdin.Close()
-	}
-	if p.cmd != nil {
-		return p.cmd.Wait()
-	}
-	return nil
-}
+// Close is a no-op — kept so the lifecycle manager's call site is unchanged.
+func (p *ImportExtractor) Close() error { return nil }
 
 // ExtractImports sends a batch of file paths and returns parsed imports keyed
 // by file path. Files that fail to parse are silently dropped by the Rust side.
@@ -128,11 +65,7 @@ func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, e
 			TsQuery: &pb.TsQueryRequest{Files: files},
 		},
 	}
-	if err := p.writeFrame(req); err != nil {
-		return nil, err
-	}
-
-	resp, err := p.readFrame()
+	resp, err := dispatch(req)
 	if err != nil {
 		return nil, err
 	}
@@ -150,34 +83,30 @@ func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, e
 	}
 }
 
-func (p *ImportExtractor) writeFrame(req *pb.Request) error {
-	payload, err := proto.Marshal(req)
+// dispatch marshals req, calls into Rust, and unmarshals the response.
+func dispatch(req *pb.Request) (*pb.Response, error) {
+	reqBytes, err := proto.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-	var lenBuf [4]byte
-	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(payload)))
-	if _, err := p.stdin.Write(lenBuf[:]); err != nil {
-		return fmt.Errorf("write length: %w", err)
-	}
-	if _, err := p.stdin.Write(payload); err != nil {
-		return fmt.Errorf("write payload: %w", err)
-	}
-	return nil
-}
 
-func (p *ImportExtractor) readFrame() (*pb.Response, error) {
-	var lenBuf [4]byte
-	if _, err := io.ReadFull(p.stdout, lenBuf[:]); err != nil {
-		return nil, fmt.Errorf("read response length: %w", err)
+	var reqPtr *C.uint8_t
+	if len(reqBytes) > 0 {
+		reqPtr = (*C.uint8_t)(unsafe.Pointer(&reqBytes[0]))
 	}
-	respLen := binary.BigEndian.Uint32(lenBuf[:])
-	respBuf := make([]byte, respLen)
-	if _, err := io.ReadFull(p.stdout, respBuf); err != nil {
-		return nil, fmt.Errorf("read response payload: %w", err)
+
+	var respPtr *C.uint8_t
+	var respLen C.size_t
+	C.ie_dispatch(reqPtr, C.size_t(len(reqBytes)), &respPtr, &respLen)
+
+	if respPtr == nil || respLen == 0 {
+		return nil, fmt.Errorf("import-extractor: empty response from FFI")
 	}
+	defer C.ie_free(respPtr, respLen)
+
+	respBytes := C.GoBytes(unsafe.Pointer(respPtr), C.int(respLen))
 	var resp pb.Response
-	if err := proto.Unmarshal(respBuf, &resp); err != nil {
+	if err := proto.Unmarshal(respBytes, &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 	return &resp, nil

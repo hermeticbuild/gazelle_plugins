@@ -2,44 +2,9 @@ use crate::ts;
 use import_extractor_proto::import_extractor as pb;
 use prost::Message;
 use rayon::prelude::*;
-use std::io::{Read, Write};
 
 pub fn encode_response(resp: pb::Response) -> Vec<u8> {
     resp.encode_to_vec()
-}
-
-/// Read length-prefixed frames from `reader`, dispatch each, and write the
-/// length-prefixed response frame to `writer`. Returns when `reader` reaches
-/// EOF or `writer` errors. Used by `main` and by integration tests.
-pub fn process_stream<R: Read, W: Write>(mut reader: R, mut writer: W) -> std::io::Result<()> {
-    let mut stream = Vec::with_capacity(16 * 1024);
-    let mut buf = [0u8; 8 * 1024];
-
-    loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            return Ok(());
-        }
-        stream.extend_from_slice(&buf[..n]);
-
-        loop {
-            if stream.len() < 4 {
-                break;
-            }
-            let len = u32::from_be_bytes([stream[0], stream[1], stream[2], stream[3]]) as usize;
-            if stream.len() < 4 + len {
-                break;
-            }
-
-            let frame = &stream[4..4 + len];
-            let response_bytes = dispatch(frame);
-            stream.drain(..4 + len);
-
-            writer.write_all(&(response_bytes.len() as u32).to_be_bytes())?;
-            writer.write_all(&response_bytes)?;
-            writer.flush()?;
-        }
-    }
 }
 
 /// Decode a request frame and produce the encoded response bytes.

@@ -236,22 +236,6 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//import_extractor:extensions.bzl%import_extractor": {
-      "general": {
-        "bzlTransitiveDigest": "AmL27r1uBZ3mfr//4hH0uflLzNjZmOlvvA26+peU/bY=",
-        "usagesDigest": "MMNWwDhj5XGhyaXNKGOSKpdvMM4ujfZaQ4/vG2pCofM=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "import_extractor": {
-            "repoRuleId": "@@//import_extractor:repositories.bzl%import_extractor_repo",
-            "attributes": {
-              "version": "0.1.1",
-              "repositories": {}
-            }
-          }
-        }
-      }
-    },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "dnnhvKMf9MIXMulhbhHBblZdDAfAkiSVjApIXpUz9Y8=",

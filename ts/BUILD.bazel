@@ -18,18 +18,19 @@ go_library(
         "configure.go",
         "fix.go",
         "generate.go",
+        "import_extractor.go",
         "imports.go",
         "kinds.go",
         "language.go",
         "lifecycle.go",
         "parser.go",
-        "import_extractor.go",
         "resolve.go",
     ],
-    # Pre-built binary downloaded by //import_extractor:extensions.bzl. Keeps
-    # the BCR surface free of rules_rs as a transitive dep — consumers get the
-    # rust binary from a GH release rather than building it from source.
-    data = ["@import_extractor//:bin"],
+    cgo = True,
+    # Rust import-extractor staticlib linked into this go_library via cgo.
+    # The Rust crate exposes a C ABI (ie_dispatch / ie_free) wrapping the
+    # in-process protobuf wire dispatcher.
+    cdeps = ["//crates/import_extractor:import_extractor_static"],
     importpath = "github.com/hermeticbuild/gazelle_ts/ts",
     visibility = ["//visibility:public"],
     deps = [
@@ -41,7 +42,6 @@ go_library(
         "@gazelle//resolve",
         "@gazelle//rule",
         "@org_golang_google_protobuf//proto",
-        "@rules_go//go/runfiles",
     ],
 )
 

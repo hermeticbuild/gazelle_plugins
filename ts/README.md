@@ -47,7 +47,7 @@ flowchart LR
     A["BUILD.bazel<br/>(directives)"] --> CFG["Configure<br/>(per directory)"]
     F["*.ts / *.tsx files"] --> GEN["GenerateRules"]
     CFG --> GEN
-    SUB["import-extractor<br/>(Rust subprocess)"] -. parses TS .-> GEN
+    SUB["import_extractor<br/>(Rust staticlib, cgo)"] -. parses TS .-> GEN
     GEN --> RULES["ts_project + js_test rules<br/>+ ImportData"]
     GEN --> IDX["RuleIndex"]
     RULES --> RES["Resolve"]
@@ -59,24 +59,10 @@ flowchart LR
 The plugin runs in three phases per Gazelle's lifecycle:
 
 1. **Configure** ([`configure.go`](configure.go)) — walks the directory tree, applying each directory's BUILD-file directives on top of the inherited config.
-2. **GenerateRules** ([`generate.go`](generate.go)) — for each directory, partitions files into source vs test, batches them into the Rust subprocess for import extraction, and emits library + test rules.
+2. **GenerateRules** ([`generate.go`](generate.go)) — for each directory, partitions files into source vs test, calls into the Rust staticlib via cgo to extract imports, and emits library + test rules.
 3. **Resolve** ([`resolve.go`](resolve.go)) — converts the parsed import statements into Bazel deps using the RuleIndex (for cross-package refs) and `package.json` (for npm packages).
 
-The Rust subprocess at [`crates/import_extractor`](../crates/import_extractor) is spawned once per Gazelle run and shut down at `DoneGeneratingRules`. Communication is length-prefixed protobuf frames over stdin/stdout — see the subprocess's README for the wire schema.
-
-### Locating the import-extractor binary
-
-The plugin tries three sources, in order:
-
-1. **`$IMPORT_EXTRACTOR_BIN`** — explicit absolute path. Use this when shipping a prebuilt binary outside Bazel (release artifact, vendored tool, CI cache):
-   ```bash
-   IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
-   ```
-   A non-existent path is logged and the lookup falls through to the next source.
-2. **Bazel runfiles** — `gazelle_ts/crates/import_extractor/bin`. The `ts` go_library declares `data = ["//crates/import_extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
-3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
-
-If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.
+The Rust crate at [`crates/import_extractor`](../crates/import_extractor) is built as a `rust_static_library` and linked into this `go_library` via `cdeps`. Calls into it go through cgo — no subprocess, no IPC; the wire format (protobuf via `prost`) is just the in-process marshalling. See the crate's README for the C ABI.
 
 The plugin's separation of `Imports` (provider side) from `Resolve` (consumer side) is what makes cross-directory `references` work: `Imports()` registers each library at its package path in the RuleIndex, and `Resolve()` queries that index to convert `#packages/foo/bar.ts` style paths into `//packages/foo` labels.
 

@@ -23,14 +23,13 @@ bazel_dep(name = "llvm", version = "0.7.3")
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
 use_repo(rules_rust, "rules_rust")
 
-# Rust toolchain. dev_dependency so a consumer that already pins a different
-# rust version doesn't see a tag-conflict here — rules_rs's toolchains
-# extension fails on mismatched tags across modules, and we only need this
-# when we're root building our own crates.
+# Rust toolchain. Not dev_dependency: consumers' gazelle_binary links the
+# import-extractor staticlib via cgo (//ts:ts depends on
+# //crates/import_extractor:import_extractor_static), so they must build the
+# Rust crate too — which means they need a registered rust toolchain.
 toolchains = use_extension(
     "@rules_rs//rs/toolchains:module_extension.bzl",
     "toolchains",
-    dev_dependency = True,
 )
 toolchains.toolchain(
     edition = "2024",
@@ -52,19 +51,14 @@ use_repo(toolchains, "default_rust_toolchains")
 # and patch the Go toolchain with the upstream cherry-pick, plus a gazelle
 # pure-mode patch. Too invasive for the size of our repo; revisit when Go
 # 1.27 lands.
-register_toolchains(
-    "@default_rust_toolchains//:all",
-    dev_dependency = True,
-)
+register_toolchains("@default_rust_toolchains//:all")
 
-# Crate resolution: rules_rs reads Cargo.toml/Cargo.lock directly (no repinning).
-# dev_dependency so a consumer's own crate.from_cargo() (a different Cargo
-# workspace) doesn't have to satisfy this one's path-deps. Only needed when
-# we're root building //crates/import_extractor:bin.
+# Crate resolution: rules_rs reads Cargo.toml/Cargo.lock directly (no
+# repinning). Not dev_dependency: consumers link our staticlib via cgo and
+# need the same dep set — see the rust toolchain comment above.
 crate = use_extension(
     "@rules_rs//rs:extensions.bzl",
     "crate",
-    dev_dependency = True,
 )
 crate.from_cargo(
     name = "crates",
@@ -84,16 +78,6 @@ rules_rust_prost = use_extension("@rules_rs//rs:rules_rust_prost.bzl", "rules_ru
 use_repo(rules_rust_prost, "rules_rust_prost")
 
 register_toolchains("@rules_rust_prost//:default_prost_toolchain")
-
-# Pre-built import-extractor binary, downloaded per-platform from the GH
-# release matching the version below. Consumers (BCR or otherwise) can point
-# this at a custom CDN via `import_extractor.toolchain(repositories = {...})`.
-# The extension dedupes by name: our default call here is overridden by a
-# consumer's `import_extractor.toolchain(...)` in their own root MODULE.bazel
-# (root-overrides-deps).
-import_extractor = use_extension("//import_extractor:extensions.bzl", "import_extractor")
-import_extractor.toolchain()
-use_repo(import_extractor, "import_extractor")
 
 # Go toolchain + module deps for the gazelle plugin.
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
