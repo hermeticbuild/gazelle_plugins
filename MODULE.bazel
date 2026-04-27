@@ -23,18 +23,35 @@ bazel_dep(name = "llvm", version = "0.7.3")
 rules_rust = use_extension("@rules_rs//rs/experimental:rules_rust.bzl", "rules_rust")
 use_repo(rules_rust, "rules_rust")
 
-# Rust toolchain (rules_rs experimental).
-toolchains = use_extension("@rules_rs//rs/experimental/toolchains:module_extension.bzl", "toolchains")
+# Rust toolchain (rules_rs experimental). dev_dependency so a consumer that
+# already pins a different rust version doesn't see a tag-conflict here —
+# rules_rs's toolchains extension fails on mismatched tags across modules,
+# and we only need this when we're root building our own crates.
+toolchains = use_extension(
+    "@rules_rs//rs/experimental/toolchains:module_extension.bzl",
+    "toolchains",
+    dev_dependency = True,
+)
 toolchains.toolchain(
     edition = "2024",
     version = "1.95.0",
 )
 use_repo(toolchains, "default_rust_toolchains")
 
-register_toolchains("@default_rust_toolchains//:all")
+register_toolchains(
+    "@default_rust_toolchains//:all",
+    dev_dependency = True,
+)
 
 # Crate resolution: rules_rs reads Cargo.toml/Cargo.lock directly (no repinning).
-crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
+# dev_dependency so a consumer's own crate.from_cargo() (a different Cargo
+# workspace) doesn't have to satisfy this one's path-deps. Only needed when
+# we're root building //crates/import-extractor:bin.
+crate = use_extension(
+    "@rules_rs//rs:extensions.bzl",
+    "crate",
+    dev_dependency = True,
+)
 crate.from_cargo(
     name = "crates",
     cargo_lock = "//:Cargo.lock",
@@ -58,6 +75,9 @@ register_toolchains("@rules_rust_prost//:default_prost_toolchain")
 # Pre-built import-extractor binary, downloaded per-platform from the GH
 # release matching the version below. Consumers (BCR or otherwise) can point
 # this at a custom CDN via `import_extractor.toolchain(repositories = {...})`.
+# The extension dedupes by name: our default call here is overridden by a
+# consumer's `import_extractor.toolchain(...)` in their own root MODULE.bazel
+# (root-overrides-deps).
 import_extractor = use_extension("//import_extractor:extensions.bzl", "import_extractor")
 import_extractor.toolchain()
 use_repo(import_extractor, "import_extractor")

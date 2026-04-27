@@ -328,7 +328,7 @@
     },
     "@@gazelle_plugins+//import_extractor:extensions.bzl%import_extractor": {
       "general": {
-        "bzlTransitiveDigest": "HKCos1c6QPS/VgcVTAeh8+Op791vC0GuMMKA1SN+O+8=",
+        "bzlTransitiveDigest": "xMb04i/W+UdFX/Yk2nmidS0oWi2Ek0L3U5rHR+8v5x8=",
         "usagesDigest": "4mu+IUp7dMku35BPpmEGkimUCejWiuBxPOFFfViVtRY=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -339,14 +339,6 @@
               "repositories": {}
             }
           }
-        },
-        "moduleExtensionMetadata": {
-          "explicitRootModuleDirectDeps": [
-            "import_extractor"
-          ],
-          "explicitRootModuleDirectDevDeps": [],
-          "useAllRepos": "NO",
-          "reproducible": false
         }
       }
     },
