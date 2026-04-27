@@ -326,6 +326,30 @@
         }
       }
     },
+    "@@gazelle_plugins+//import_extractor:extensions.bzl%import_extractor": {
+      "general": {
+        "bzlTransitiveDigest": "HKCos1c6QPS/VgcVTAeh8+Op791vC0GuMMKA1SN+O+8=",
+        "usagesDigest": "4mu+IUp7dMku35BPpmEGkimUCejWiuBxPOFFfViVtRY=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "import_extractor": {
+            "repoRuleId": "@@gazelle_plugins+//import_extractor:repositories.bzl%import_extractor_repo",
+            "attributes": {
+              "version": "0.1.0",
+              "repositories": {}
+            }
+          }
+        },
+        "moduleExtensionMetadata": {
+          "explicitRootModuleDirectDeps": [
+            "import_extractor"
+          ],
+          "explicitRootModuleDirectDevDeps": [],
+          "useAllRepos": "NO",
+          "reproducible": false
+        }
+      }
+    },
     "@@rules_kotlin+//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
       "general": {
         "bzlTransitiveDigest": "ABI1D/sbS1ovwaW/kHDoj8nnXjQ0oKU9fzmzEG4iT8o=",

@@ -66,9 +66,9 @@ func newImportExtractor() (*ImportExtractor, error) {
 //  1. $IMPORT_EXTRACTOR_BIN — explicit absolute path. Use this when shipping
 //     a prebuilt binary outside of Bazel (release artifact, vendored tool,
 //     CI cache). A non-existent path is logged and the lookup continues.
-//  2. Bazel runfiles — `gazelle_plugins/crates/import-extractor/bin`. The
-//     standard path when the plugin runs under `bazel run //:gazelle` and
-//     the gazelle_binary's `data` deps include the rust binary.
+//  2. Bazel runfiles — under the apparent repo created by the
+//     //import_extractor:extensions.bzl module extension (or, in dev,
+//     a source-built path inside gazelle_plugins). Tries each in order.
 //  3. $PATH — looks for an `import_extractor` executable. Picks up a
 //     `cargo install`-style global install or anything dropped on PATH by
 //     a developer's environment manager.
@@ -83,9 +83,17 @@ func findImportExtractorBinary() string {
 		log.Printf("ts: IMPORT_EXTRACTOR_BIN=%q does not exist; trying Bazel runfiles + $PATH", bin)
 	}
 
-	if bin, err := runfiles.Rlocation("gazelle_plugins/crates/import-extractor/bin"); err == nil {
-		if _, err := os.Stat(bin); err == nil {
-			return bin
+	// Apparent repo created by the import_extractor module extension's aggregator.
+	// Fallback path covers source-built dev workflows that still wire the rust
+	// target as `data` directly.
+	for _, p := range []string{
+		"import_extractor/import_extractor",
+		"gazelle_plugins/crates/import-extractor/bin",
+	} {
+		if bin, err := runfiles.Rlocation(p); err == nil {
+			if _, err := os.Stat(bin); err == nil {
+				return bin
+			}
 		}
 	}
 
