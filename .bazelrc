@@ -8,6 +8,11 @@ build --registry=https://bcr.bazel.build
 common --enable_platform_specific_config
 common:linux --host_platform=//:local_gnu_platform
 
+# The hermetic LLVM toolchain (registered in MODULE.bazel) doesn't ship a real
+# libgcc_s — link steps that look for -lgcc_s would fail without this stub.
+# rules_rs's own .bazelrc enables it unconditionally; same here.
+common --@llvm//config:experimental_stub_libgcc_s
+
 # Quieter output
 build --show_result=0
 test --test_output=errors
