@@ -1,9 +1,9 @@
 //! End-to-end tests for the wire protocol.
 //!
 //! These exercise `process_stream` with realistic byte streams: multiple frames in a
-//! single read, frames split across reads, mixed TS/Python requests, and malformed
-//! input. The unit tests in `src/wire.rs` cover the per-request dispatch logic; these
-//! cover the framing layer that `main.rs` is otherwise alone in exercising.
+//! single read, frames split across reads, and malformed input. The unit tests in
+//! `src/wire.rs` cover the per-request dispatch logic; these cover the framing layer
+//! that `main.rs` is otherwise alone in exercising.
 
 use import_extractor::wire;
 use import_extractor_proto::import_extractor as pb;
@@ -23,21 +23,6 @@ fn ts_request(id: u32, files: &[&str]) -> pb::Request {
         id,
         data: Some(pb::request::Data::TsQuery(pb::TsQueryRequest {
             files: files.iter().map(|s| s.to_string()).collect(),
-        })),
-    }
-}
-
-fn py_request(id: u32, files: &[(&str, &str)]) -> pb::Request {
-    pb::Request {
-        id,
-        data: Some(pb::request::Data::PyQuery(pb::PyQueryRequest {
-            files: files
-                .iter()
-                .map(|(p, r)| pb::PyFileSpec {
-                    path: (*p).into(),
-                    rel_path: (*r).into(),
-                })
-                .collect(),
         })),
     }
 }
@@ -111,13 +96,13 @@ fn multiple_frames_in_one_read() {
     let dir = std::env::temp_dir().join("ie_integration_multi");
     std::fs::create_dir_all(&dir).unwrap();
     let a = dir.join("a.ts");
-    let b = dir.join("b.py");
+    let b = dir.join("b.ts");
     std::fs::write(&a, "import 'mod-a';").unwrap();
-    std::fs::write(&b, "import os\n").unwrap();
+    std::fs::write(&b, "import 'mod-b';").unwrap();
 
     let mut input = Vec::new();
     input.extend_from_slice(&frame(&ts_request(1, &[&a.to_string_lossy()])));
-    input.extend_from_slice(&frame(&py_request(2, &[(&b.to_string_lossy(), "b.py")])));
+    input.extend_from_slice(&frame(&ts_request(2, &[&b.to_string_lossy()])));
     input.extend_from_slice(&frame(&ts_request(3, &[])));
 
     let mut output = Vec::new();
@@ -134,7 +119,7 @@ fn multiple_frames_in_one_read() {
     ));
     assert!(matches!(
         responses[1].data,
-        Some(pb::response::Data::PyResult(_))
+        Some(pb::response::Data::TsResult(_))
     ));
 }
 

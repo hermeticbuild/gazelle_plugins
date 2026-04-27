@@ -1,4 +1,4 @@
-// main.rs -- Long-lived subprocess for extracting imports from TypeScript and Python.
+// main.rs -- Long-lived subprocess for extracting imports from TypeScript.
 //
 // Spawned by gazelle plugins and stays alive for the entire gazelle run.
 // Communication is over stdin/stdout using length-prefixed protobuf frames.

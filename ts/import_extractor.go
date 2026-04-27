@@ -145,8 +145,6 @@ func (p *ImportExtractor) ExtractImports(files []string) (map[string][]string, e
 			out[fi.File] = fi.ImportPaths
 		}
 		return out, nil
-	case *pb.Response_PyResult:
-		return nil, fmt.Errorf("import-extractor: unexpected py_result for ts_query")
 	default:
 		return nil, fmt.Errorf("import-extractor: empty response oneof")
 	}

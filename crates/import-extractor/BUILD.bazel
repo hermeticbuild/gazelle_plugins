@@ -15,7 +15,6 @@ rust_library(
     name = "import_extractor",
     srcs = [
         "src/lib.rs",
-        "src/python.rs",
         "src/ts.rs",
         "src/wire.rs",
     ],
@@ -33,10 +32,6 @@ rust_library(
         "@crates//:oxc_parser",
         "@crates//:oxc_span",
         "@crates//:rayon",
-        "@crates//:ruff_python_ast",
-        "@crates//:ruff_python_parser",
-        "@crates//:ruff_text_size",
-        "@crates//:serde",
     ],
 )
 
