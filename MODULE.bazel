@@ -26,8 +26,8 @@ use_repo(rules_rust, "rules_rust")
 # Rust toolchain (rules_rs experimental).
 toolchains = use_extension("@rules_rs//rs/experimental/toolchains:module_extension.bzl", "toolchains")
 toolchains.toolchain(
-    edition = "2021",
-    version = "1.93.0",
+    edition = "2024",
+    version = "1.95.0",
 )
 use_repo(toolchains, "default_rust_toolchains")
 
