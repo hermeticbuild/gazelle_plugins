@@ -62,7 +62,7 @@ The plugin runs in three phases per Gazelle's lifecycle:
 2. **GenerateRules** ([`generate.go`](generate.go)) — for each directory, partitions files into source vs test, batches them into the Rust subprocess for import extraction, and emits library + test rules.
 3. **Resolve** ([`resolve.go`](resolve.go)) — converts the parsed import statements into Bazel deps using the RuleIndex (for cross-package refs) and `package.json` (for npm packages).
 
-The Rust subprocess at [`crates/import-extractor`](../crates/import-extractor) is spawned once per Gazelle run and shut down at `DoneGeneratingRules`. Communication is length-prefixed protobuf frames over stdin/stdout — see the subprocess's README for the wire schema.
+The Rust subprocess at [`crates/import_extractor`](../crates/import_extractor) is spawned once per Gazelle run and shut down at `DoneGeneratingRules`. Communication is length-prefixed protobuf frames over stdin/stdout — see the subprocess's README for the wire schema.
 
 ### Locating the import-extractor binary
 
@@ -73,7 +73,7 @@ The plugin tries three sources, in order:
    IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
    ```
    A non-existent path is logged and the lookup falls through to the next source.
-2. **Bazel runfiles** — `gazelle_ts/crates/import-extractor/bin`. The `ts` go_library declares `data = ["//crates/import-extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
+2. **Bazel runfiles** — `gazelle_ts/crates/import_extractor/bin`. The `ts` go_library declares `data = ["//crates/import_extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
 3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
 
 If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.

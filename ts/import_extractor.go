@@ -4,7 +4,7 @@
 //
 //	[4-byte big-endian u32 length][protobuf payload of that length]
 //
-// Request and Response are oneof-wrapped (see crates/import-extractor/proto).
+// Request and Response are oneof-wrapped (see crates/import_extractor/proto).
 // Each call to ExtractImports sends a single TsQueryRequest variant and reads
 // back exactly one TsResponseResult (or an error variant).
 package ts
@@ -88,7 +88,7 @@ func findImportExtractorBinary() string {
 	// target as `data` directly.
 	for _, p := range []string{
 		"import_extractor/import_extractor",
-		"gazelle_ts/crates/import-extractor/bin",
+		"gazelle_ts/crates/import_extractor/bin",
 	} {
 		if bin, err := runfiles.Rlocation(p); err == nil {
 			if _, err := os.Stat(bin); err == nil {

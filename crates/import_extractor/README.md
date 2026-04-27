@@ -55,8 +55,8 @@ tests/
 ## Build
 
 ```
-bazel build //crates/import-extractor:bin
-bazel test  //crates/import-extractor:test
+bazel build //crates/import_extractor:bin
+bazel test  //crates/import_extractor:test
 ```
 
 The proto codegen runs through `rust_prost_library`, so Bazel is the only supported build path for the binary. The library target (`ts`) compiles under cargo for `rust-analyzer` use.
