@@ -1,4 +1,4 @@
-use crate::{python, ts};
+use crate::ts;
 use import_extractor_proto::import_extractor as pb;
 use prost::Message;
 use rayon::prelude::*;
@@ -62,7 +62,6 @@ pub fn dispatch(frame: &[u8]) -> Vec<u8> {
     let id = req.id;
     let resp = match req.data {
         Some(pb::request::Data::TsQuery(ts_req)) => handle_ts(id, ts_req),
-        Some(pb::request::Data::PyQuery(py_req)) => handle_python(id, py_req),
         None => pb::Response {
             id,
             data: Some(pb::response::Data::Error(pb::ResponseError {
@@ -98,44 +97,6 @@ pub fn handle_ts(id: u32, req: pb::TsQueryRequest) -> pb::Response {
     }
 }
 
-pub fn handle_python(id: u32, req: pb::PyQueryRequest) -> pb::Response {
-    let results: Vec<pb::PyFileOutput> = req
-        .files
-        .par_iter()
-        .filter_map(
-            |f| match python::extract_imports_from_file(&f.path, &f.rel_path) {
-                Ok(output) => Some(pb::PyFileOutput {
-                    file_name: output.file_name,
-                    modules: output
-                        .modules
-                        .into_iter()
-                        .map(|m| pb::PyModule {
-                            name: m.name,
-                            lineno: m.lineno,
-                            filepath: m.filepath,
-                            from: m.from,
-                            type_checking_only: m.type_checking_only,
-                        })
-                        .collect(),
-                    comments: output.comments,
-                    has_main: output.has_main,
-                }),
-                Err(e) => {
-                    eprintln!("import_extractor: skipping {}: {e}", f.path);
-                    None
-                }
-            },
-        )
-        .collect();
-
-    pb::Response {
-        id,
-        data: Some(pb::response::Data::PyResult(pb::PyResponseResult {
-            results,
-        })),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,22 +106,6 @@ mod tests {
             id,
             data: Some(pb::request::Data::TsQuery(pb::TsQueryRequest {
                 files: files.into_iter().map(String::from).collect(),
-            })),
-        }
-        .encode_to_vec()
-    }
-
-    fn build_py_request(id: u32, files: Vec<(&str, &str)>) -> Vec<u8> {
-        pb::Request {
-            id,
-            data: Some(pb::request::Data::PyQuery(pb::PyQueryRequest {
-                files: files
-                    .into_iter()
-                    .map(|(p, r)| pb::PyFileSpec {
-                        path: p.into(),
-                        rel_path: r.into(),
-                    })
-                    .collect(),
             })),
         }
         .encode_to_vec()
@@ -200,14 +145,6 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_preserves_request_id_on_py_query() {
-        let req = build_py_request(99, vec![]);
-        let resp = decode(&dispatch(&req));
-        assert_eq!(resp.id, 99);
-        assert!(matches!(resp.data, Some(pb::response::Data::PyResult(_))));
-    }
-
-    #[test]
     fn handle_ts_skips_files_that_fail_to_read() {
         let resp = handle_ts(
             1,
@@ -240,50 +177,6 @@ mod tests {
                 assert_eq!(r.imports[0].import_paths, vec!["mod-a", "mod-b"]);
             }
             _ => panic!("expected ts_result"),
-        }
-    }
-
-    #[test]
-    fn handle_python_skips_files_that_fail_to_read() {
-        let resp = handle_python(
-            2,
-            pb::PyQueryRequest {
-                files: vec![pb::PyFileSpec {
-                    path: "/nonexistent/file.py".into(),
-                    rel_path: "file.py".into(),
-                }],
-            },
-        );
-        match resp.data {
-            Some(pb::response::Data::PyResult(r)) => assert!(r.results.is_empty()),
-            _ => panic!("expected py_result"),
-        }
-    }
-
-    #[test]
-    fn handle_python_returns_modules_for_real_file() {
-        let dir = std::env::temp_dir().join("import_extractor_wire_test_py");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("m.py");
-        std::fs::write(&path, "import os\nfrom collections import OrderedDict\n").unwrap();
-
-        let resp = handle_python(
-            8,
-            pb::PyQueryRequest {
-                files: vec![pb::PyFileSpec {
-                    path: path.to_string_lossy().into_owned(),
-                    rel_path: "m.py".into(),
-                }],
-            },
-        );
-        match resp.data {
-            Some(pb::response::Data::PyResult(r)) => {
-                assert_eq!(r.results.len(), 1);
-                let names: Vec<&str> = r.results[0].modules.iter().map(|m| m.name.as_str()).collect();
-                assert!(names.contains(&"os"));
-                assert!(names.iter().any(|n| n.contains("OrderedDict")));
-            }
-            _ => panic!("expected py_result"),
         }
     }
 

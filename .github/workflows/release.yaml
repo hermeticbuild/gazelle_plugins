@@ -118,7 +118,7 @@ jobs:
           body: |
             ## import-extractor ${{ github.ref_name }}
 
-            Long-lived subprocess for extracting imports from TypeScript and Python.
+            Long-lived subprocess for extracting imports from TypeScript.
 
             ### Binaries
             - **macOS Apple Silicon**: `import_extractor-darwin-arm64`
