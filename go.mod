@@ -1,4 +1,4 @@
-module github.com/hermeticbuild/gazelle_plugins
+module github.com/hermeticbuild/gazelle_ts
 
 go 1.23
 

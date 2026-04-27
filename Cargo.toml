@@ -8,7 +8,7 @@ members = [
 edition = "2024"
 rust-version = "1.95"
 license = "Apache-2.0"
-repository = "https://github.com/hermeticbuild/gazelle_plugins"
+repository = "https://github.com/hermeticbuild/gazelle_ts"
 
 [profile.release]
 panic = "abort"

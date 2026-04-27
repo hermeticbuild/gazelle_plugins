@@ -1,6 +1,6 @@
 name: module-release
 
-# Releases the `gazelle_plugins` Bazel module to GitHub Releases and submits it
+# Releases the `gazelle_ts` Bazel module to GitHub Releases and submits it
 # to the Bazel Central Registry via bazel-contrib/publish-to-bcr.
 #
 # Tag scheme: `vX.Y.Z` (distinct from `import_extractor_v*`, which releases the
@@ -42,7 +42,7 @@ jobs:
   release:
     uses: bazel-contrib/.github/.github/workflows/release_ruleset.yaml@v7.4.0
     with:
-      release_files: gazelle_plugins-*.tar.gz
+      release_files: gazelle_ts-*.tar.gz
       prerelease: false
       tag_name: ${{ inputs.tag || github.ref_name }}
 

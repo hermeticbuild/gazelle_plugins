@@ -19,7 +19,7 @@ default URL/SHA256 map shipped in
 See [`MODULE.bazel`](MODULE.bazel). The relevant block:
 
 ```starlark
-import_extractor = use_extension("@gazelle_plugins//import_extractor:extensions.bzl", "import_extractor")
+import_extractor = use_extension("@gazelle_ts//import_extractor:extensions.bzl", "import_extractor")
 import_extractor.toolchain(
     version = "0.1.1",
     repositories = {

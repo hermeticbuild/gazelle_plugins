@@ -20,7 +20,7 @@ load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 
 gazelle_binary(
     name = "gazelle_bin",
-    languages = ["@gazelle_plugins//ts"],
+    languages = ["@gazelle_ts//ts"],
 )
 
 gazelle(
@@ -31,7 +31,7 @@ gazelle(
 
 Then run `bazel run //:gazelle`.
 
-`@gazelle_plugins//ts` is a Gazelle Language; you compose your own `gazelle_binary` so it can be combined with other languages (`go`, `python`, `proto`, …) into a single binary.
+`@gazelle_ts//ts` is a Gazelle Language; you compose your own `gazelle_binary` so it can be combined with other languages (`go`, `python`, `proto`, …) into a single binary.
 
 By default the plugin emits:
 
@@ -73,7 +73,7 @@ The plugin tries three sources, in order:
    IMPORT_EXTRACTOR_BIN=/usr/local/bin/import_extractor bazel run //:gazelle
    ```
    A non-existent path is logged and the lookup falls through to the next source.
-2. **Bazel runfiles** — `gazelle_plugins/crates/import-extractor/bin`. The `ts` go_library declares `data = ["//crates/import-extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
+2. **Bazel runfiles** — `gazelle_ts/crates/import-extractor/bin`. The `ts` go_library declares `data = ["//crates/import-extractor:bin"]`, so any consumer-built `gazelle_binary` automatically carries the binary into runfiles.
 3. **`$PATH`** — looks for an `import_extractor` executable on PATH. Picks up a `cargo install`-style global install or anything dropped on PATH by a dev environment manager.
 
 If none match, the plugin logs a warning and skips parsing instead of aborting the gazelle run — every TS file is treated as having no imports, so generated `deps` will be empty until the binary is reachable.

@@ -10,9 +10,9 @@ bazel_dep(name = "aspect_rules_ts", version = "3.8.8")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_nodejs", version = "6.7.4")
 
-bazel_dep(name = "gazelle_plugins", version = "0.0.0")
+bazel_dep(name = "gazelle_ts", version = "0.0.0")
 local_path_override(
-    module_name = "gazelle_plugins",
+    module_name = "gazelle_ts",
     path = "../..",
 )
 
@@ -26,16 +26,16 @@ local_path_override(
 # The keys are "<version>.<platform>"; values are [url, sha256_hex]. URLs
 # below happen to point at the public GH release so this example actually
 # works end-to-end — swap the host for your own to verify the override path.
-import_extractor = use_extension("@gazelle_plugins//import_extractor:extensions.bzl", "import_extractor")
+import_extractor = use_extension("@gazelle_ts//import_extractor:extensions.bzl", "import_extractor")
 import_extractor.toolchain(
     version = "0.1.1",
     repositories = {
         "0.1.1.darwin-arm64": [
-            "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-darwin-arm64",
+            "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.1/import_extractor-darwin-arm64",
             "c22df4be91126f2739bf1f1cba55bd922eaa6ded78d8a5d40aa8728cbd5c9fb7",
         ],
         "0.1.1.linux-x64": [
-            "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-linux-x64",
+            "https://github.com/hermeticbuild/gazelle_ts/releases/download/import_extractor_v0.1.1/import_extractor-linux-x64",
             "74954c35702d251baf8e8f317390b33a0245f53e4c973f4347022198927ea4af",
         ],
     },
