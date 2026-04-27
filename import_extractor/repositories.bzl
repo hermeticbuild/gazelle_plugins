@@ -16,6 +16,16 @@ regardless of bzlmod canonicalization.
 # Updated whenever a new `import_extractor_v*` release is cut. Each platform
 # entry is `{url, sha256}`. SHA256s are over the raw binary file.
 IMPORT_EXTRACTOR_VERSIONS = {
+    "0.1.1": {
+        "darwin-arm64": {
+            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-darwin-arm64",
+            "sha256": "c22df4be91126f2739bf1f1cba55bd922eaa6ded78d8a5d40aa8728cbd5c9fb7",
+        },
+        "linux-x64": {
+            "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.1/import_extractor-linux-x64",
+            "sha256": "74954c35702d251baf8e8f317390b33a0245f53e4c973f4347022198927ea4af",
+        },
+    },
     "0.1.0": {
         "darwin-arm64": {
             "url": "https://github.com/hermeticbuild/gazelle_plugins/releases/download/import_extractor_v0.1.0/import_extractor-darwin-arm64",
@@ -28,7 +38,7 @@ IMPORT_EXTRACTOR_VERSIONS = {
     },
 }
 
-DEFAULT_VERSION = "0.1.0"
+DEFAULT_VERSION = "0.1.1"
 
 def _host_platform_key(rctx):
     """Map repository_ctx host info → keys used in IMPORT_EXTRACTOR_VERSIONS."""

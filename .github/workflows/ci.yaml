@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [basic, composite, graphql, advanced]
+        example: [basic, composite, graphql, advanced, custom-extractor]
 
     steps:
       - uses: actions/checkout@v6
