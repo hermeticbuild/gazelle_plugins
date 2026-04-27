@@ -45,7 +45,6 @@ def _import_extractor_impl(module_ctx):
             if mod.is_root or name not in selected:
                 selected[name] = tag
 
-    direct_deps = []
     for name, tag in selected.items():
         version = tag.version or DEFAULT_VERSION
         import_extractor_repo(
@@ -53,12 +52,6 @@ def _import_extractor_impl(module_ctx):
             version = version,
             repositories = tag.repositories,
         )
-        direct_deps.append(name)
-
-    return module_ctx.extension_metadata(
-        root_module_direct_deps = direct_deps,
-        root_module_direct_dev_deps = [],
-    )
 
 _toolchain = tag_class(
     attrs = {
