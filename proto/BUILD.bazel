@@ -1,8 +1,8 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
 # Standalone proto target used by both the Rust subprocess (built from source
-# in //crates/import-extractor) and the Go gazelle plugin (//ts/proto). Lives
-# in its own package — separate from //crates/import-extractor — so that
+# in //crates/import_extractor) and the Go gazelle plugin (//ts/proto). Lives
+# in its own package — separate from //crates/import_extractor — so that
 # loading it doesn't pull in rules_rs / rules_rust_prost. That's what lets
 # BCR consumers depend on the gazelle plugin without picking up the Rust
 # toolchain transitively.

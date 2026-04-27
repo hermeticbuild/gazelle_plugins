@@ -27,11 +27,11 @@ jobs:
         include:
           - platform: macOS ARM64
             runner: macos-latest
-            bazel_platform: //crates/import-extractor/platforms:darwin_arm64
+            bazel_platform: //crates/import_extractor/platforms:darwin_arm64
             artifact_name: import_extractor-darwin-arm64
           - platform: Linux x86_64
             runner: ubuntu-latest
-            bazel_platform: //crates/import-extractor/platforms:linux_x86_64
+            bazel_platform: //crates/import_extractor/platforms:linux_x86_64
             artifact_name: import_extractor-linux-x64
 
     steps:
@@ -49,14 +49,14 @@ jobs:
           bazel build \
             --config=opt \
             --platforms=${{ matrix.bazel_platform }} \
-            //crates/import-extractor:bin
+            //crates/import_extractor:bin
 
           # Resolve the actual output path via cquery — rules_rs may rename or
           # suffix the artifact, so don't hardcode bazel-bin/.../bin.
           bin_path=$(bazel cquery \
             --config=opt \
             --platforms=${{ matrix.bazel_platform }} \
-            --output=files //crates/import-extractor:bin)
+            --output=files //crates/import_extractor:bin)
 
           mkdir -p artifacts
           cp "$bin_path" artifacts/${{ matrix.artifact_name }}

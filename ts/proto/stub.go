@@ -8,7 +8,7 @@
 // //ts/proto:import_extractor_go_proto and these stubs are
 // shadowed (rules_go's go_library replaces the package when compiling).
 //
-// Keep the public API in sync with crates/import-extractor/proto/message.proto.
+// Keep the public API in sync with crates/import_extractor/proto/message.proto.
 //
 //go:build never
 

@@ -46,7 +46,7 @@ register_toolchains(
 # Crate resolution: rules_rs reads Cargo.toml/Cargo.lock directly (no repinning).
 # dev_dependency so a consumer's own crate.from_cargo() (a different Cargo
 # workspace) doesn't have to satisfy this one's path-deps. Only needed when
-# we're root building //crates/import-extractor:bin.
+# we're root building //crates/import_extractor:bin.
 crate = use_extension(
     "@rules_rs//rs:extensions.bzl",
     "crate",
