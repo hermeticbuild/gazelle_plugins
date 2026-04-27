@@ -14,7 +14,7 @@
 // The plugin operates in Gazelle's three-phase pipeline:
 //
 //  1. GenerateRules (generate.go): scan .ts/.tsx files, extract imports via
-//     the import-extractor subprocess, create/update rules.
+//     the import_extractor cgo FFI, create/update rules.
 //  2. Imports (imports.go): register rules in the RuleIndex so other
 //     packages can resolve their imports against ours.
 //  3. Resolve (resolve.go): convert parsed imports into Bazel deps labels.
@@ -34,11 +34,8 @@ import (
 const languageName = "ts"
 
 // tsLang implements the language.Language interface from Gazelle. It carries
-// the parser subprocess (via lifeCycleManager) and cached package.json data
-// used during import resolution.
+// cached package.json data used during import resolution.
 type tsLang struct {
-	lifeCycleManager
-
 	// packageDeps is a set of all npm package names from the root package.json
 	// (dependencies + devDependencies + optionalDependencies).
 	packageDeps map[string]bool

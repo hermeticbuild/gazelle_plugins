@@ -8,7 +8,6 @@ Each subdirectory is a self-contained Bazel workspace exercising the `ts` plugin
 | [`composite/`](composite) | Multiple packages with cross-package imports via `package.json` `imports` (`#packages/*`). TS project references via `composite = True`. |
 | [`graphql/`](graphql) | Real `@graphql-codegen/cli` running as a Bazel build step against `.graphql` files; the output is compiled by `ts_project`, wrapped as `npm_package`, linked at `//:node_modules/@myrepo_generated/queries`, and consumed by a composite app via `# gazelle:ts_generated_package`. |
 | [`advanced/`](advanced) | Everything in `composite` plus a Bazel-generated synthetic npm package (genrule + `npm_package` + `npm_link_package`) wired through the `# gazelle:ts_generated_package` directive. |
-| [`custom-extractor/`](custom-extractor) | Same shape as `basic`, but wires the `import_extractor` module extension with explicit `repositories = {...}` URL/SHA256 overrides — the pattern for mirroring the binary on an internal CDN or shipping a pre-release. |
 
 Each workspace points its `MODULE.bazel` at the parent `gazelle_ts` repo via `local_path_override`, so changes to the plugin's Go source apply on the next `bazel run //:gazelle` without any release dance.
 
