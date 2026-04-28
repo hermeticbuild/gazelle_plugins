@@ -1,6 +1,7 @@
 module(
     name = "gazelle_ts",
     version = "0.0.0",
+    bazel_compatibility = [">=8.5.0"],
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")

@@ -2,7 +2,7 @@
 
 Bazel build setup, a Gazelle TypeScript language extension, and the Rust import-extractor that powers it (linked in via cgo).
 
-Built on **Bazel 9 (bzlmod)** with [`rules_rs`](https://github.com/dzbarsky/rules_rs) for the Rust side and `aspect_rules_ts` / `aspect_rules_js` for the TypeScript examples.
+Built on **Bazel 8.5+ (bzlmod)** with [`rules_rs`](https://github.com/dzbarsky/rules_rs) for the Rust side and `aspect_rules_ts` / `aspect_rules_js` for the TypeScript examples. Tested in CI against Bazel 8.5.1 and 9.0.0.
 
 ## Layout
 

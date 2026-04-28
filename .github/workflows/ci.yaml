@@ -31,12 +31,15 @@ jobs:
 
   bazel-test:
     needs: matrix
-    name: bazel test (${{ matrix.os.platform }})
+    name: bazel ${{ matrix.bazel }} test (${{ matrix.os.platform }})
     runs-on: ${{ matrix.os.runner }}
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.matrix.outputs.platforms) }}
+        bazel: ["8.5.1", "9.0.0"]
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel }}
 
     steps:
       - uses: actions/checkout@v6
@@ -45,7 +48,7 @@ jobs:
         uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}-${{ matrix.os.platform }}
+          disk-cache: ${{ github.workflow }}-${{ matrix.os.platform }}-bazel${{ matrix.bazel }}
           repository-cache: true
 
       - name: bazel test //...
@@ -54,12 +57,15 @@ jobs:
   # Examples are linux-only — they exercise the BUILD-generation path and
   # don't add platform-specific coverage worth the macOS runner cost.
   examples:
-    name: example ${{ matrix.example }}
+    name: example ${{ matrix.example }} (bazel ${{ matrix.bazel }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         example: [basic, composite, graphql, advanced]
+        bazel: ["8.5.1", "9.0.0"]
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel }}
 
     steps:
       - uses: actions/checkout@v6
@@ -68,7 +74,7 @@ jobs:
         uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}-examples-${{ matrix.example }}
+          disk-cache: ${{ github.workflow }}-examples-${{ matrix.example }}-bazel${{ matrix.bazel }}
           repository-cache: true
 
       - name: bazel test //... (examples/${{ matrix.example }})
