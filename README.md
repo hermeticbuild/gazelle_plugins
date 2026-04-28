@@ -25,6 +25,36 @@ examples/                      # self-contained Bazel workspaces:
 - **`crates/import_extractor`** — Rust staticlib that parses TypeScript imports via `oxc`. Exposes a small C ABI (`ie_dispatch` / `ie_free`); the gazelle plugin links it via cgo and dispatches in-process. See [`crates/import_extractor/README.md`](crates/import_extractor/README.md).
 - **`examples/`** — four escalating example workspaces, each with its own `MODULE.bazel`, `pnpm-lock.yaml`, and `tsconfig.json`. They `local_path_override` the parent module so plugin changes apply on the next `bazel run //:gazelle`. See [`examples/README.md`](examples/README.md).
 
+## Consumer setup
+
+Add the module and compose your own `gazelle_binary`:
+
+```python
+# MODULE.bazel
+bazel_dep(name = "gazelle", version = "0.50.0")
+bazel_dep(name = "gazelle_ts", version = "<latest>")
+```
+
+```python
+# BUILD.bazel
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+# gazelle:ts_tsconfig //:tsconfig
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_ts//ts"],
+)
+
+gazelle(
+    name = "gazelle",
+    gazelle = ":gazelle_bin",
+)
+```
+
+Then `bazel run //:gazelle` to generate `ts_project` / `js_test` rules. Swap to your own macros via `# gazelle:map_kind`. See [`ts/README.md`](ts/README.md) for the directive reference and [`examples/`](examples/) for end-to-end workspaces.
+
 ## Build
 
 ```
