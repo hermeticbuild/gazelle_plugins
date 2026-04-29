@@ -55,6 +55,11 @@ jobs:
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends \
             ca-certificates curl git gcc g++ python3 unzip xz-utils
+          # bazel-contrib/setup-bazel manages caches but assumes bazelisk is
+          # already on PATH (true on github-hosted runners, not in containers).
+          curl -fsSL https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 \
+            -o /usr/local/bin/bazelisk
+          chmod +x /usr/local/bin/bazelisk
 
       - uses: actions/checkout@v6
 
@@ -90,6 +95,11 @@ jobs:
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends \
             ca-certificates curl git gcc g++ python3 unzip xz-utils
+          # bazel-contrib/setup-bazel manages caches but assumes bazelisk is
+          # already on PATH (true on github-hosted runners, not in containers).
+          curl -fsSL https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 \
+            -o /usr/local/bin/bazelisk
+          chmod +x /usr/local/bin/bazelisk
 
       - uses: actions/checkout@v6
 
