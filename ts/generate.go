@@ -215,6 +215,17 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		if cfg.tsconfig != "" {
 			r.SetAttr("tsconfig", cfg.tsconfig)
 		}
+		if cfg.projectReferences {
+			// Mirror the lib's compile flags so the shared tsconfig's
+			// composite/declaration/sourceMap settings line up with the rule's
+			// attrs. The boundary the directive enforces is structural
+			// (separate compilation unit + lib-can't-import-config), not a
+			// difference in compiler flags.
+			r.SetAttr("composite", true)
+			r.SetAttr("declaration", true)
+			r.SetAttr("declaration_map", true)
+			r.SetAttr("source_map", true)
+		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{Imports: g.imports})
 	}

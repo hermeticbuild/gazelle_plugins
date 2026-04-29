@@ -1,41 +1,27 @@
-"""Public macros for gazelle_ts-emitted rule kinds.
+"""Stub for the `ts_bundler_config` rule emitted by the gazelle plugin.
 
-The plugin emits `ts_bundler_config` for files matched by the
-`ts_bundler_config_pattern` directive (vite/vitest/tailwind configs etc.).
-This macro is the default implementation: a thin wrapper over `ts_project`
-with bundler-friendly defaults so the config typechecks as its own
-compilation unit but does not contribute to the lib's runtime closure.
+`ts_bundler_config` is intentionally an abstract kind: the plugin emits the
+rule with this load path, but the consumer is expected to override it with
+a project-specific macro via `# gazelle:map_kind`. The macro typically
+wraps `ts_project` with whatever transpiler / tsconfig / visibility shape
+fits the consumer workspace; the gazelle_ts module deliberately does not
+take a transitive `aspect_rules_ts` dependency, so the macro can't live
+here.
 
-Consumers who want a different shape (e.g. a project-specific transpiler
-or no typecheck at all) should `# gazelle:map_kind ts_bundler_config
-<their_macro> //path/to:their.bzl` to swap. The plugin emits the kind name
-unchanged; gazelle rewrites the load statement on disk.
+The fallback below collects matched files into a filegroup so the BUILD
+still loads and gazelle can run — but the bundler-config files are NOT
+typechecked. To get a real compilation unit, add to your root BUILD:
+
+    # gazelle:map_kind ts_bundler_config <your_macro> <your_load_path>
+
+and re-run gazelle. See `examples/bundler-config/tools/bundler.bzl` for
+a one-line wrapper over ts_project.
 """
 
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
-
-def ts_bundler_config(name, srcs, deps = None, tsconfig = None, visibility = None, **kwargs):
-    """Wraps ts_project for bundler/tooling config files.
-
-    Defaults:
-      - composite / declaration / source_map: False (bundler configs are
-        leaves, not project references; declarations would pull tsc into
-        the lib's reference graph which defeats the boundary).
-      - visibility: package-private (configs are not meant to be imported
-        across packages; if you need cross-package use, set visibility
-        explicitly).
-
-    Anything not covered by the defaults forwards to ts_project — set
-    `transpiler`, `tsconfig`, `args`, `data`, etc. as needed.
-    """
-    ts_project(
-        name = name,
-        srcs = srcs,
-        deps = deps or [],
-        tsconfig = tsconfig,
-        visibility = visibility or ["//visibility:private"],
-        composite = False,
-        declaration = False,
-        source_map = False,
-        **kwargs
+def ts_bundler_config(name, srcs, **_kwargs):
+    # buildifier: disable=print
+    print(
+        "ts_bundler_config('" + name + "') is using the abstract-kind fallback (no typecheck). " +
+        "Add `# gazelle:map_kind ts_bundler_config <macro> <load_path>` and re-run gazelle.",
     )
+    native.filegroup(name = name, srcs = srcs)

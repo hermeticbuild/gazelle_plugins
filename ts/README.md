@@ -194,7 +194,9 @@ Key behaviors:
 - **Helpers stay in lib.** If `vite.config.ts` and `lib.ts` both import `./shared.ts`, `shared.ts` lands in the library and the bundler-config target adds `:lib` to its deps. The closure leaks bundler→lib but never lib→bundler.
 - **`lib.ts` importing a bundler-config file is a build error.** The resolver does not route the import to the bundler-config target; the import goes unresolved and ts_project fails. This is the boundary the directive enforces — silently re-routing would defeat the purpose.
 
-The default `ts_bundler_config` macro (loaded from `@gazelle_ts//ts:defs.bzl`) wraps `ts_project` with `composite = False`, `declaration = False`, `source_map = False`, and package-private visibility. Override per-project with `# gazelle:map_kind ts_bundler_config <your_macro> //path:your.bzl` — the kind name is what gets rewritten on disk, so lib `ts_project`s are unaffected.
+`ts_bundler_config` is an **abstract kind**. The plugin emits the rule with the kind name unchanged; consumers must wire it to a concrete macro via `# gazelle:map_kind ts_bundler_config <your_macro> <your_load_path>` in the root BUILD.bazel. A typical implementation is a one-line wrapper over `ts_project` (see [`examples/bundler-config`](../examples/bundler-config) for a complete walkthrough).
+
+The plugin deliberately does not ship a default macro — that would force a transitive `aspect_rules_ts` dependency on the gazelle_ts module, which (a) couples a Gazelle plugin to a specific TS rules version and (b) interacts poorly with Bazel-version-incompatible toolchains in transitive rules_nodejs releases. The distinct kind name is the actual lever for project customization: `map_kind ts_bundler_config <macro>` rewrites bundler-config emissions independently of lib `ts_project`s.
 
 ## Generated attrs
 
