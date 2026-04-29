@@ -54,6 +54,13 @@ jobs:
       - name: bazel test //...
         run: bazelisk test //...
 
+      # BCR's anonymous_module_runner builds gazelle_ts as a dep, so our
+      # workspace .bazelrc never applies. Re-build //ts/... with
+      # --noworkspace_rc to catch any flag we'd silently rely on (e.g. a
+      # --host_platform pin that downstream consumers wouldn't have).
+      - name: bazel build //ts/... (--noworkspace_rc, mimics BCR consumer)
+        run: bazelisk --noworkspace_rc build //ts/...
+
   # Examples are linux-only — they exercise the BUILD-generation path and
   # don't add platform-specific coverage worth the macOS runner cost.
   examples:
