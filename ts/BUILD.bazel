@@ -31,6 +31,16 @@ go_library(
     # rustc flags via with_cfg, so consumers get an optimized binary even
     # when their own bazel invocation runs in fastbuild.
     cdeps = ["//crates/import_extractor:import_extractor_static"],
+    # Rust std uses dlsym (sys/pal/unix/weak/dlsym.rs). On glibc < 2.34
+    # (e.g. Debian 11) libdl is a separate object — without -ldl the cgo
+    # link fails with "undefined reference to 'dlsym'". On glibc ≥ 2.34
+    # (Ubuntu 22.04+) libdl is a stub that forwards to libc, so the flag
+    # is harmless. rules_rs's stdlib_linkflags select doesn't add -ldl
+    # for plain @platforms//os:linux.
+    clinkopts = select({
+        "@platforms//os:linux": ["-ldl"],
+        "//conditions:default": [],
+    }),
     importpath = "github.com/hermeticbuild/gazelle_ts/ts",
     visibility = ["//visibility:public"],
     deps = [
@@ -52,6 +62,12 @@ go_test(
         "generate_test.go",
         "resolve_test.go",
     ],
+    # Mirror the go_library's clinkopts — go_test re-links and the
+    # cgo'd Rust staticlib still needs dlsym on glibc < 2.34.
+    clinkopts = select({
+        "@platforms//os:linux": ["-ldl"],
+        "//conditions:default": [],
+    }),
     embed = [":ts"],
     deps = [
         "@gazelle//rule",
