@@ -1,17 +1,8 @@
-# Paved-path host platforms for rules_rs. Linux and Windows host platforms
-# need an ABI constraint so Rust toolchain resolution can pick the matching
-# exec toolchain — macOS doesn't (default host config is fine).
-#
-# Pinned via .bazelrc's common:linux / common:windows --host_platform lines.
-# See https://github.com/hermeticbuild/rules_rs#bazelrc.
-platform(
-    name = "local_gnu",
-    constraint_values = [
-        "@llvm//constraints/libc:gnu.2.28",
-    ],
-    parents = ["@platforms//host"],
-)
-
+# Windows host platform for rules_rs. Linux and macOS use the libc-free
+# rust toolchain wrappers in //rust_toolchains, so the default
+# @platforms//host works there. Windows still needs an ABI constraint
+# because rules_rs's windows toolchains gate on it. Pinned via .bazelrc's
+# common:windows --host_platform line.
 platform(
     name = "local_windows_msvc",
     constraint_values = [

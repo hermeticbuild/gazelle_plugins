@@ -2,11 +2,11 @@
 
 build --registry=https://bcr.bazel.build
 
-# Per rules_rs's paved path: pin the host platform on Linux and Windows so
-# rust toolchain resolution can pick the right exec toolchain. macOS doesn't
-# need this. See //platforms:BUILD.bazel for the platform definitions.
+# Windows still needs a host_platform pin so rules_rs's windows toolchains
+# (which gate on a windows ABI constraint) can resolve. Linux and macOS use
+# the libc-free toolchains we register at //rust_toolchains, so the default
+# @platforms//host is sufficient there.
 common --enable_platform_specific_config
-common:linux --host_platform=//platforms:local_gnu
 common:windows --host_platform=//platforms:local_windows_msvc
 
 # Quieter output

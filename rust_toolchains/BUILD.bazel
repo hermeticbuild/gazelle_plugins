@@ -1,0 +1,83 @@
+# Re-register rules_rs's downloaded rust toolchains with libc-free
+# constraints. rules_rs's `triple_to_constraint_set` (rs/platforms/triples.bzl)
+# appends @llvm//constraints/libc:gnu.2.28 to every Linux self-target wrapper.
+# That constraint isn't on the default @platforms//host:host, so consumers
+# (and BCR presubmit) hit "No matching toolchains" for
+# @rules_rust//rust:toolchain_type unless they pin --host_platform to a
+# custom platform that carries the libc value.
+#
+# We wrap the same `rust_toolchain` rules rules_rs already creates in the
+# @default_rust_toolchains repo — pointing at the identical rustc / cargo /
+# rust-std downloads — and re-register them under the same toolchain_type
+# with target_compatible_with stripped of the libc gate. rules_rs's
+# rust_static_library consumes the same toolchain_type, so these resolve
+# cleanly for it.
+#
+# Tradeoff: a consumer on glibc < 2.28 would previously fail toolchain
+# resolution (clear error). Now they'll resolve and link, then crash at
+# load time with "GLIBC_2.28 not found". For BCR / modern distros that's
+# fine; the libc gating wasn't doing useful work for our use case.
+
+_RUST_VERSION_KEY = "1_95_0"
+
+_TRIPLES = [
+    ("linux", "x86_64"),
+    ("linux", "aarch64"),
+    ("macos", "x86_64"),
+    ("macos", "aarch64"),
+]
+
+[
+    toolchain(
+        name = "{}_{}".format(os, cpu),
+        exec_compatible_with = [
+            "@platforms//os:{}".format(os),
+            "@platforms//cpu:{}".format(cpu),
+        ],
+        target_compatible_with = [
+            "@platforms//os:{}".format(os),
+            "@platforms//cpu:{}".format(cpu),
+        ],
+        target_settings = [
+            "@rules_rust//rust/private:bootstrapped",
+            "@rules_rust//rust/toolchain/channel:stable",
+        ],
+        toolchain = "@default_rust_toolchains//:{}_{}_{}_rust_toolchain".format(
+            os,
+            cpu,
+            _RUST_VERSION_KEY,
+        ),
+        toolchain_type = "@rules_rust//rust:toolchain_type",
+        visibility = ["//visibility:public"],
+    )
+    for (os, cpu) in _TRIPLES
+]
+
+# Bootstrap variants — rules_rust builds its own process_wrapper with
+# bootstrapping = True, where only toolchains gating on the
+# `bootstrapping` config_setting match.
+[
+    toolchain(
+        name = "{}_{}_bootstrap".format(os, cpu),
+        exec_compatible_with = [
+            "@platforms//os:{}".format(os),
+            "@platforms//cpu:{}".format(cpu),
+        ],
+        target_compatible_with = [
+            "@platforms//os:{}".format(os),
+            "@platforms//cpu:{}".format(cpu),
+        ],
+        target_settings = [
+            "@rules_rust//rust/private:bootstrapping",
+            "@rules_rust//rust/toolchain/channel:stable",
+        ],
+        toolchain = "@default_rust_toolchains//:{}_{}_{}_rust_toolchain_bootstrap".format(
+            os,
+            cpu,
+            _RUST_VERSION_KEY,
+        ),
+        toolchain_type = "@rules_rust//rust:toolchain_type",
+        visibility = ["//visibility:public"],
+    )
+    for (os, cpu) in _TRIPLES
+]
