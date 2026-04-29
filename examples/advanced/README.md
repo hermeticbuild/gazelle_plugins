@@ -17,16 +17,16 @@ A self-contained Bazel workspace that exercises the `ts` plugin against a repres
         └── math/deep/           # depends on packages/core, deeply nested
 ```
 
-`.ts` files live directly in each package directory (no `src/` subdirectory) — gazelle treats every directory containing `.ts` files as a Bazel package and emits one `ts_project` per directory. Every `*.ts` file demonstrates a different mix of import patterns. The synthetic package shows how Bazel-generated npm packages (not in `package.json`) are wired via the `# gazelle:ts_generated_package` directive.
+`.ts` files live directly in each package directory (no `src/` subdirectory) — gazelle treats every directory containing `.ts` files as a Bazel package and emits one `ts_library` per directory (mapped via `# gazelle:map_kind` to `myorg_ts_library` in `tools/ts.bzl`). Every `*.ts` file demonstrates a different mix of import patterns. The synthetic package shows how Bazel-generated npm packages (not in `package.json`) are wired via the `# gazelle:ts_generated_package` directive.
 
 ## What this verifies
 
-- `ts_project` rules with cross-package `deps` resolved across arbitrary nesting depth (including TS project references — `composite = True` on each library).
-- `js_test` targets generated for `*.test.ts` files; the example runs them directly via Node 22's `--experimental-transform-types` (no precompile step needed).
+- `ts_library` rules with cross-package `deps` resolved across arbitrary nesting depth; the wrapper macro turns them into `ts_project` with TS project references (`composite = True`).
+- `ts_test` targets generated for `*.test.ts` files; mapped via `# gazelle:map_kind` to `vitest_test` (a multi-entry runner that auto-discovers from `data`).
 - npm packages auto-paired with `@types/*` when present in `package.json`.
 - Node.js builtins resolve to `@types/node`.
 - Synthetic Bazel-generated packages link into `//:node_modules/@myrepo_generated/synthetic` via `npm_link_package` and resolve through the `ts_generated_package` directive.
-- The full chain — pnpm-lock translation, `npm_link_all_packages`, `ts_project` with the tsc transpiler, and `js_test` with Node 22 type stripping — composes end-to-end.
+- The full chain — pnpm-lock translation, `npm_link_all_packages`, the `ts_library` wrapper compiling via tsc, and `vitest_test` — composes end-to-end.
 
 ## Running
 
@@ -47,8 +47,8 @@ bazel test //...
 |---|---|
 | [`MODULE.bazel`](MODULE.bazel) | `aspect_rules_js`, `aspect_rules_ts`, `rules_nodejs`, `npm_translate_lock`, `rules_ts_ext.deps()`. Pins Node 22.11 and a local override on the parent `gazelle_ts` repo. |
 | [`.bazelrc`](.bazelrc) | `--@aspect_rules_ts//ts:default_to_tsc_transpiler=True` so every `ts_project` defaults to tsc; `--test_env=NODE_OPTIONS=--experimental-transform-types` so `js_test` can run `.ts` files directly. |
-| [`tsconfig.json`](tsconfig.json) | `composite`, `declaration`, `declarationMap`, `sourceMap` on (matching the plugin's emitted attrs), `paths` mirroring `package.json` `imports`. |
-| [`BUILD.bazel`](BUILD.bazel) | `npm_link_all_packages` (pnpm-driven), `npm_link_package` for the synthetic package, gazelle directives (`ts_npm_link_pattern`, `ts_tsconfig`, `ts_generated_package`). |
+| [`tsconfig.json`](tsconfig.json) | `composite`, `declaration`, `declarationMap`, `sourceMap` on (matching the wrapper macro's emitted attrs), `paths` mirroring `package.json` `imports`. |
+| [`BUILD.bazel`](BUILD.bazel) | `npm_link_all_packages` (pnpm-driven), `npm_link_package` for the synthetic package, gazelle directives (`ts_npm_link_pattern`, `ts_generated_package`, `map_kind`s). |
 | [`packages/synthetic/BUILD.bazel`](packages/synthetic/BUILD.bazel) | Three `genrule`s producing `index.js` / `package.json` / `index.d.ts`, an `npm_package` wrapping them. The root linker entry maps it to `//:node_modules/@myrepo_generated/synthetic`. |
 | [`tools/ts.bzl`](tools/ts.bzl) | Project wrappers (`myorg_ts_library`, `vitest_test`) that generated BUILDs route to via `# gazelle:map_kind`. Forwards to stock `ts_project` / `js_test`. |
 | [`tools/BUILD.bazel`](tools/BUILD.bazel) | A `js_library` named `mystery` that the `# gazelle:resolve ts ts mystery:banner //tools:mystery` directive maps an arbitrary import string to. |
@@ -57,7 +57,7 @@ bazel test //...
 
 This example is the kitchen-sink — you can see all three of gazelle's load-time customization knobs at work:
 
-- **`# gazelle:map_kind`** in [`BUILD.bazel`](BUILD.bazel) routes `ts_project` → `myorg_ts_library` and `js_test` → `vitest_test` (both from `//tools:ts.bzl`). Every emitted BUILD file uses the wrapper kinds.
+- **`# gazelle:map_kind`** in [`BUILD.bazel`](BUILD.bazel) routes the abstract `ts_library` → `myorg_ts_library`, `ts_test` → `vitest_test`, and `js_binary` → `myorg_js_binary` (all from `//tools:ts.bzl`). Every emitted BUILD file uses the wrapper kinds.
 - **`# gazelle:resolve`** in [`BUILD.bazel`](BUILD.bazel) maps the virtual import `mystery:banner` to `//tools:mystery`. `apps/cli/main.ts` imports it; the type comes from a co-located `apps/cli/types.d.ts`.
 - **`# keep`** is shown in [`examples/composite/apps/web/BUILD.bazel`](../composite/apps/web/BUILD.bazel) — a `users.json` fixture is hand-added to `data` and survives every `bazel run //:gazelle`.
 

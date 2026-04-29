@@ -33,12 +33,13 @@ Then run `bazel run //:gazelle`.
 
 `@gazelle_ts//ts` is a Gazelle Language; you compose your own `gazelle_binary` so it can be combined with other languages (`go`, `python`, `proto`, …) into a single binary.
 
-By default the plugin emits:
+The plugin emits three abstract kinds, all loaded from `@gazelle_ts//ts:defs.bzl`:
 
-- `ts_project` for libraries (loaded from `@aspect_rules_ts//ts:defs.bzl`)
-- `js_test` for tests (loaded from `@aspect_rules_js//js:defs.bzl`)
+- `ts_library` for libraries.
+- `ts_test` for tests — assumes a multi-entry runner (vitest, jest, mocha); no `entry_point` is set.
+- `ts_bundler_config` for files matched by `ts_bundler_config_pattern`.
 
-If you have your own macros, use `# gazelle:map_kind` to swap (see [§ Running with a custom macro](#running-with-a-custom-macro-map_kind)).
+Consumers must `# gazelle:map_kind` each to a project-specific macro (typically one-line wrappers over `ts_project` / `vitest_test` / etc.). The plugin deliberately does not take a transitive `aspect_rules_ts` or `aspect_rules_js` dependency, and project-specific macros want their own defaults (transpiler, tsconfig, project-references compile flags, entry_point picking). See [§ Running with a custom macro](#running-with-a-custom-macro-map_kind).
 
 ## Architecture
 
@@ -93,10 +94,10 @@ A few cases that are intentionally **not** resolved:
 
 ## Recommendations
 
+- **Wire a concrete library macro via `# gazelle:map_kind ts_library …`.** The plugin emits the abstract `ts_library` kind; consumers wrap it in a one-line macro forwarding to `ts_project` (and setting project-specific defaults: transpiler, project-references compile flags). Without map_kind, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs into a `filegroup` so the BUILD still loads — but nothing typechecks. See [§ Running with a custom macro](#running-with-a-custom-macro-map_kind).
 - **Use `package.json` `imports` for internal cross-package references.** Configuring `"#packages/*": "./packages/*"` lets you write `import { foo } from '#packages/utils/x.js'` in source AND have TypeScript / Node.js / the bundler all agree on resolution. The plugin reads the same map and resolves to internal Bazel labels. This is strictly better than tsconfig's `paths` field, which Node.js and most bundlers ignore.
-- **Turn on `ts_project_references`** in monorepos. It maps to TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) and gives you incremental builds and proper cross-package type-checking. The plugin emits `composite = True`, `declaration = True`, `source_map = True`, and a resolved `references` attr automatically.
+- **In monorepos, set TypeScript project references in your wrapper macro.** Set `composite = True`, `declaration = True`, `source_map = True` inside the macro behind `ts_library`; the wrapper runs once and applies to every emitted library. The plugin doesn't emit those attrs — they're a compile-shape choice the macro owns.
 - **Pin one npm linker layout via `ts_npm_link_pattern`.** rules_js's pnpm projects typically use `//<dir>:node_modules/{pkg}`; the default `//:node_modules/{pkg}` is right for the simplest setup. Setting this once at the repo root keeps every emitted dep consistent.
-- **Prefer `# gazelle:map_kind` over `ts_library_kind`/`ts_test_kind`.** map_kind keeps the load path explicit in the generated BUILD file, which is what you want when reviewing diffs. Use the directive overrides only when you can't use map_kind (e.g. when the consumer macro lives in a non-load-statement-friendly path).
 - **Don't fight the merge engine.** Attrs the plugin sets are listed in [§ Generated attrs](#generated-attrs); attrs we don't set are preserved across runs. Manual overrides (custom `transpiler`, extra `args`, opt-in `declaration_dir`) survive — that's by design.
 - **Annotate generated files with `# keep`.** If a file would be excluded by the test pattern but you want it in `srcs` (e.g. a `*.generated.ts` checked-in fixture), add `"foo.generated.ts",  # keep` to the `srcs` list. The merge engine preserves it.
 
@@ -109,17 +110,12 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_enabled` | `true` | Disable per-tree to skip directories owned by another tool. |
 | `ts_library_name` | _(package basename, e.g. `web` for `//apps/web`)_ | Name of the generated library rule. |
 | `ts_test_name` | _(package basename + `_test`, e.g. `web_test`)_ | Name of the generated test rule. |
-| `ts_library_kind` | `ts_project` | Override emitted library kind without `map_kind`. |
-| `ts_test_kind` | `js_test` | Override emitted test kind without `map_kind`. |
 | `ts_visibility` | `//visibility:public` | Repeatable / space-separated list. |
 | `ts_test_pattern` | `*.test.ts`, `*.test.tsx`, `tests/**`, `test/**` | Repeatable; appended. |
 | `ts_extension` | `.ts`, `.tsx` | Repeatable; appended. |
-| `ts_project_references` | `true` | Emits `composite = True` and the resolved `references` attr. |
-| `ts_tsconfig` | _(unset)_ | Set to a Bazel label to emit `tsconfig` on every library. |
 | `ts_npm_link_pattern` | `//:node_modules/{pkg}` | Template; `{pkg}` is replaced with the resolved package name. |
 | `ts_generated_package` | _(from `package.json` `imports`)_ | Repeatable `pattern=target` entries; maps a generated/synthetic package namespace to a Bazel label. Merged on top of `package.json`. |
 | `ts_test_data` | _(empty)_ | Repeatable; appended to every test rule's `data`. |
-| `ts_test_entry_point` | _first matching `*.test.ts*`_ | Override the entry point picked for tests. |
 | `ts_bundler_config_pattern` | _(empty)_ | Repeatable `<glob> <name>` entries. Files matching the glob are excluded from the library and emitted as a separate `ts_bundler_config` target named `<name>`. Use for vite/vitest/tailwind/storybook configs whose deps should not enter the lib's compilation closure. |
 
 ### `ts_generated_package` examples
@@ -159,10 +155,10 @@ app/
 └── index.test.ts           # imports vitest, ./index
 ```
 
-the plugin emits:
+the plugin emits (kinds shown pre-`map_kind` rewrite):
 
 ```python
-ts_project(
+ts_library(
     name = "app",
     srcs = ["helpers.ts", "index.ts", "viteHelpers.ts"],
     deps = ["//:node_modules/lodash", "//:node_modules/react"],
@@ -192,15 +188,13 @@ Key behaviors:
 - **Bundler-config classification overrides the test split** — a file matching both `*.test.ts` and a bundler-config pattern goes to the bundler-config target.
 - **Multiple specs may share a name** — pointing several patterns at one target merges their files into a single rule.
 - **Helpers stay in lib.** If `vite.config.ts` and `lib.ts` both import `./shared.ts`, `shared.ts` lands in the library and the bundler-config target adds `:lib` to its deps. The closure leaks bundler→lib but never lib→bundler.
-- **`lib.ts` importing a bundler-config file is a build error.** The resolver does not route the import to the bundler-config target; the import goes unresolved and ts_project fails. This is the boundary the directive enforces — silently re-routing would defeat the purpose.
+- **`lib.ts` importing a bundler-config file is a build error.** The resolver does not route the import to the bundler-config target; the import goes unresolved and the typecheck fails. This is the boundary the directive enforces — silently re-routing would defeat the purpose.
 
-`ts_bundler_config` is an **abstract kind**. The plugin emits the rule with the kind name unchanged; consumers must wire it to a concrete macro via `# gazelle:map_kind ts_bundler_config <your_macro> <your_load_path>` in the root BUILD.bazel. A typical implementation is a one-line wrapper over `ts_project` (see [`examples/bundler-config`](../examples/bundler-config) for a complete walkthrough).
-
-The plugin deliberately does not ship a default macro — that would force a transitive `aspect_rules_ts` dependency on the gazelle_ts module, which (a) couples a Gazelle plugin to a specific TS rules version and (b) interacts poorly with Bazel-version-incompatible toolchains in transitive rules_nodejs releases. The distinct kind name is the actual lever for project customization: `map_kind ts_bundler_config <macro>` rewrites bundler-config emissions independently of lib `ts_project`s.
+`ts_bundler_config`, like `ts_library`, is an abstract kind requiring `map_kind`. The distinct kind name is the lever for project customization: `map_kind ts_bundler_config <macro>` rewrites bundler-config emissions independently of `ts_library`. See [`examples/bundler-config`](../examples/bundler-config) for a complete walkthrough.
 
 ## Generated attrs
 
-### `ts_project`
+### `ts_library` (abstract)
 
 | Attr | Set by | Behavior |
 |---|---|---|
@@ -208,23 +202,21 @@ The plugin deliberately does not ship a default macro — that would force a tra
 | `srcs` | generate | mergeable, preserves `# keep` lines |
 | `visibility` | generate | overwritten each run |
 | `deps` | resolve | replaced each run |
-| `references` | resolve | replaced when `ts_project_references = true` |
-| `composite`, `declaration`, `source_map` | generate | only when `ts_project_references = true` |
-| `tsconfig` | generate | only when `ts_tsconfig` directive is set |
 | anything else | _untouched_ | manual overrides survive across runs |
 
-### `js_test`
+`composite`, `declaration`, `source_map`, `transpiler`, `tsconfig` etc. are **not** emitted by the plugin — they belong to the macro you map_kind `ts_library` to.
+
+### `ts_test` (abstract)
 
 | Attr | Set by | Behavior |
 |---|---|---|
 | `name` | generate | non-empty required |
-| `srcs` | generate | mergeable |
-| `data` | generate | mergeable |
-| `deps` | resolve | replaced each run |
-| `entry_point` | generate | from `ts_test_entry_point` or first `*.test.ts*` |
-| anything else | _untouched_ | |
+| `data` | generate + resolve | mergeable; carries test sources, fixtures, npm packages, sibling lib |
+| anything else | _untouched_ | manual overrides survive across runs |
 
-### `ts_bundler_config`
+No `entry_point` — `ts_test` assumes a multi-entry runner (vitest, jest, mocha). Wrappers mapped to single-entry runners (stock `js_test`) need to pick one from `data` themselves.
+
+### `ts_bundler_config` (abstract)
 
 | Attr | Set by | Behavior |
 |---|---|---|
@@ -232,7 +224,6 @@ The plugin deliberately does not ship a default macro — that would force a tra
 | `srcs` | generate | mergeable; one entry per matched file |
 | `visibility` | generate | overwritten each run |
 | `deps` | resolve | replaced each run; includes sibling lib label when the config has any relative imports |
-| `tsconfig` | generate | only when `ts_tsconfig` directive is set |
 | anything else | _untouched_ | manual overrides survive across runs |
 
 ## How import resolution works
@@ -243,18 +234,60 @@ The plugin deliberately does not ship a default macro — that would force a tra
    - **Generated package or subpath** (matches a key in the merged `package.json` `imports` + `ts_generated_package` map): resolves to either a literal Bazel label (when target starts with `//` or `@`) or an internal repo label found via the RuleIndex.
    - **Node.js builtin**: resolves to `@types/node`.
    - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced; auto-pairs `@types/<pkg>` if present in deps.
-3. Library rules get `deps` (npm) and `references` (internal). Test rules collapse both into `deps` (a test typically links everything its source linked, plus its own deps).
+3. Library rules collect every resolved label into `deps`. Test and bundler-config rules do the same into `data`/`deps`.
 4. `Imports()` registers each library's package path in the RuleIndex so other directories can look it up via `FindRulesByImportWithConfig`.
 
 ## Running with a custom macro (`map_kind`)
 
-Suppose you want to emit your own `myrepo_ts_library` macro instead of stock `ts_project`. Add to your root BUILD file:
+All three kinds are abstract; wire each to a concrete macro at your root BUILD:
 
 ```starlark
-# gazelle:map_kind ts_project myrepo_ts_library //tools:ts.bzl
-# gazelle:map_kind js_test    myrepo_ts_test    //tools:ts.bzl
+# gazelle:map_kind ts_library         myrepo_ts_library     //tools:ts.bzl
+# gazelle:map_kind ts_test            myrepo_ts_test        //tools:ts.bzl
+# gazelle:map_kind ts_bundler_config  myrepo_bundler_config //tools:ts.bzl
 ```
 
-The plugin still emits the stock kinds; gazelle rewrites the kind name and load path on disk. Your macro must accept the attrs the plugin sets (see [§ Generated attrs](#generated-attrs) above). If your macro doesn't accept `composite`, `declaration`, etc., either turn them off via `# gazelle:ts_project_references false` or have your macro discard them.
+A typical `tools/ts.bzl`:
 
-A common pattern is for `myrepo_ts_library` to wrap `ts_project` and add project-specific defaults (a default tsconfig, transpiler choice, npm packaging metadata). The wrapper accepts `srcs`, `deps`, `references` and forwards them; everything else flows through.
+```starlark
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+
+def myrepo_ts_library(name, srcs, **kwargs):
+    ts_project(
+        name = name,
+        srcs = srcs,
+        composite = True,
+        declaration = True,
+        declaration_map = True,
+        source_map = True,
+        # transpiler, default tsconfig, etc. baked in here.
+        **kwargs
+    )
+
+def myrepo_ts_test(name, data, **kwargs):
+    # Pick the first .test.ts* from data as entry_point for stock js_test;
+    # if you've moved to vitest_test/jest_test, drop this and forward data
+    # to the runner directly.
+    entry = None
+    for d in data:
+        if d.endswith(".test.ts") or d.endswith(".test.tsx"):
+            entry = d
+            break
+    js_test(name = name, data = data, entry_point = entry, **kwargs)
+
+def myrepo_bundler_config(name, srcs, **kwargs):
+    ts_project(name = name, srcs = srcs, **kwargs)
+```
+
+If you skip `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/data into a `filegroup` (so the BUILD still loads) but doesn't typecheck or run tests — you'll see a `print` warning telling you to add the directive.
+
+## Migrating from `ts_project`
+
+If you're updating from a version that emitted `ts_project` / `js_test` directly:
+
+1. Add `# gazelle:map_kind` directives for `ts_library`, `ts_test`, and (if used) `ts_bundler_config` at your root BUILD.
+2. Move project-references compile flags (`composite`, `declaration`, `source_map`, `declaration_map`), `transpiler`, and `tsconfig` into your wrapper macro — the plugin no longer emits them.
+3. Move `entry_point` handling into your `ts_test` wrapper (pick from `data`, or use a multi-entry runner).
+4. Drop directives that are now no-ops: `ts_project_references`, `ts_library_kind`, `ts_test_kind`, `ts_tsconfig`, `ts_transpiler`, `ts_test_entry_point`, `ts_test_entry_point_auto`.
+5. Re-run gazelle. Old `ts_project` / `js_test` rules will be replaced by your wrapper kinds.

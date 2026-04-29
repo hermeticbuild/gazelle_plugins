@@ -2,7 +2,7 @@ load("//tools:ts.bzl", "myorg_js_binary", "myorg_ts_library")
 
 # Hand-written js_binary — gazelle never generates these, but it does
 # manage the `data` attr based on what entry_point/srcs imports. The user
-# owns name, entry_point, env, etc.; the plugin fills in deps.
+# owns name, entry_point, env, etc.; the plugin fills in data deps.
 myorg_js_binary(
     name = "cli_bin",
     data = [
@@ -22,11 +22,6 @@ myorg_ts_library(
         "main.ts",
         "types.d.ts",
     ],
-    composite = True,
-    declaration = True,
-    declaration_map = True,
-    source_map = True,
-    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@myrepo_generated/synthetic",

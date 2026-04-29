@@ -1,15 +1,18 @@
 // Package ts implements a Gazelle language extension for TypeScript packages.
 //
-// It generates stock rules_ts/rules_js rules:
+// It generates three abstract rule kinds (all loaded from
+// @gazelle_ts//ts:defs.bzl, with filegroup fallbacks that print a warning
+// when no map_kind is configured):
 //
-//   - ts_project (from @aspect_rules_ts//ts:defs.bzl) for libraries
-//   - js_test    (from @aspect_rules_js//js:defs.bzl) for tests
+//   - ts_library          for libraries
+//   - ts_test             for tests (assumes a multi-entry runner; no entry_point)
+//   - ts_bundler_config   for files matched by ts_bundler_config_pattern
 //
-// Callsites that want their own macros wrap the generated kinds via
-// # gazelle:map_kind, e.g.
+// Consumers wire each to a concrete macro:
 //
-//	# gazelle:map_kind ts_project myrepo_ts_library //tools:ts.bzl
-//	# gazelle:map_kind js_test    myrepo_ts_test    //tools:ts.bzl
+//	# gazelle:map_kind ts_library         myrepo_ts_library //tools:ts.bzl
+//	# gazelle:map_kind ts_test            vitest_test       //tools:ts.bzl
+//	# gazelle:map_kind ts_bundler_config  myrepo_bundler_config //tools:ts.bzl
 //
 // The plugin operates in Gazelle's three-phase pipeline:
 //

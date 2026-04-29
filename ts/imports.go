@@ -18,13 +18,11 @@ import (
 //
 // Test rules don't export reusable modules, so they don't appear in the index.
 func (l *tsLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
-	cfg, _ := c.Exts[languageName].(*tsConfig)
-	if cfg == nil {
-		cfg = newTsConfig()
-	}
-
-	// Match either the configured library kind or its post-map_kind name.
-	if r.Kind() != cfg.libraryKind {
+	// Gazelle reverse-applies map_kind when reading existing BUILDs, so by
+	// the time Imports() sees a rule, its r.Kind() is the gazelle-managed
+	// kind name (post-rewrite back from the consumer's wrapper). Match the
+	// abstract kind directly.
+	if r.Kind() != KindTsLibrary {
 		return nil
 	}
 

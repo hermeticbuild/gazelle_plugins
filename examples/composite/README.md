@@ -19,9 +19,9 @@ Multiple TypeScript packages with cross-package references. Demonstrates `packag
 
 ## What this verifies
 
-- `# gazelle:ts_npm_link_pattern` and `ts_tsconfig` directives applied repo-wide.
+- `# gazelle:ts_npm_link_pattern` directive applied repo-wide; tsconfig + project-references compile flags are baked into the `ts_library` wrapper at `tools/ts.bzl` (the plugin no longer emits these attrs directly).
 - Cross-package imports via `package.json` `"imports": { "#packages/*": "./packages/*" }` resolve to `//packages/<name>` Bazel targets.
-- TS project references work (`composite = True` on every emitted `ts_project`, with `deps` carrying the cross-package labels).
+- TS project references work — every `ts_library` wrapper sets `composite = True`, with `deps` carrying the cross-package labels.
 - npm packages and `@types/*` auto-pairing work alongside internal deps.
 
 ## Try it

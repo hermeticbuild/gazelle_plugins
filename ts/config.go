@@ -6,12 +6,21 @@ const (
 	// Empty default means "use the package's directory basename" — see
 	// resolveRuleNames in generate.go. This way //apps/web:web shortens to
 	// //apps/web, the most natural Bazel idiom.
-	defaultLibraryName       = ""
-	defaultTestName          = ""
-	defaultLibraryKind       = "ts_project"
-	defaultTestKind          = "js_test"
-	defaultNpmLinkPattern    = "//:node_modules/{pkg}"
-	defaultProjectReferences = true
+	defaultLibraryName    = ""
+	defaultTestName       = ""
+	defaultNpmLinkPattern = "//:node_modules/{pkg}"
+
+	// KindTsLibrary is the abstract library kind the plugin emits. Consumers
+	// must `# gazelle:map_kind ts_library <macro> <load_path>` to a concrete
+	// macro; the fallback in @gazelle_ts//ts:defs.bzl is a filegroup that
+	// keeps the BUILD parseable but doesn't typecheck.
+	KindTsLibrary = "ts_library"
+
+	// KindTsTest is the abstract test kind. The plugin emits it with no
+	// entry_point — consumers map_kind to vitest_test, jest_test, or any
+	// multi-entry runner that auto-discovers from `data`. The fallback in
+	// @gazelle_ts//ts:defs.bzl is a filegroup so the BUILD still loads.
+	KindTsTest = "ts_test"
 )
 
 // Default test-file patterns and source-file extensions. Patterns are matched
@@ -32,12 +41,6 @@ type tsConfig struct {
 	libraryName string
 	testName    string
 
-	// libraryKind / testKind are the rule kinds emitted. Stock defaults are
-	// `ts_project` and `js_test`; override via directive when you'd rather
-	// emit a different kind directly than rewrite via `# gazelle:map_kind`.
-	libraryKind string
-	testKind    string
-
 	// visibility is the list of labels emitted on the library rule.
 	visibility []string
 
@@ -46,20 +49,6 @@ type tsConfig struct {
 
 	// extensions: file extensions treated as TypeScript source.
 	extensions []string
-
-	// projectReferences toggles emission of `composite = True` and the
-	// `references` resolve attr on libraries.
-	projectReferences bool
-
-	// tsconfig: when set, every emitted ts_project gets this label as its
-	// `tsconfig` attr. Empty = unset.
-	tsconfig string
-
-	// transpiler: when set, emitted as the `transpiler` attr on every
-	// ts_project. rules_ts requires a transpiler selection; common values
-	// are `partial(@aspect_rules_ts//ts:defs.bzl%tsc)` (a .bzl call) or a
-	// custom macro name like `swc`.
-	transpiler string
 
 	// npmLinkPattern is the template used for npm package labels, e.g.
 	// `//:node_modules/{pkg}`. The literal `{pkg}` is replaced with the
@@ -74,17 +63,6 @@ type tsConfig struct {
 
 	// testData is added to every emitted test rule's `data` attr.
 	testData []string
-
-	// testEntryPoint, when set, is emitted as the test rule's `entry_point`.
-	testEntryPoint string
-
-	// testEntryPointAuto controls whether GenerateRules auto-picks a default
-	// entry_point (the first sorted *.test.ts*) when testEntryPoint isn't
-	// set. Default true. Turn off when the test kind is mapped (via
-	// # gazelle:map_kind) or overridden (via ts_test_kind) to a runner that
-	// auto-discovers tests — vitest_test, jest_test, mocha_test — where an
-	// emitted entry_point is meaningless or wrong.
-	testEntryPointAuto bool
 
 	// bundlerConfigSpecs lists the bundler/tooling config files held out of
 	// the library compilation unit, each with its own emitted target name.
@@ -106,15 +84,11 @@ func newTsConfig() *tsConfig {
 		enabled:           true,
 		libraryName:       defaultLibraryName,
 		testName:          defaultTestName,
-		libraryKind:       defaultLibraryKind,
-		testKind:          defaultTestKind,
 		visibility:        append([]string(nil), defaultVisibility...),
 		testPatterns:      append([]string(nil), defaultTestPatterns...),
 		extensions:        append([]string(nil), defaultExtensions...),
-		projectReferences: defaultProjectReferences,
-		npmLinkPattern:     defaultNpmLinkPattern,
-		generatedPackages:  make(map[string]string),
-		testEntryPointAuto: true,
+		npmLinkPattern:    defaultNpmLinkPattern,
+		generatedPackages: make(map[string]string),
 	}
 }
 
