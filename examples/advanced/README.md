@@ -57,7 +57,7 @@ bazel test //...
 
 This example is the kitchen-sink — you can see all three of gazelle's load-time customization knobs at work:
 
-- **`# gazelle:map_kind`** in [`BUILD.bazel`](BUILD.bazel) routes the abstract `ts_library` → `myorg_ts_library`, `ts_test` → `vitest_test`, and `js_binary` → `myorg_js_binary` (all from `//tools:ts.bzl`). Every emitted BUILD file uses the wrapper kinds.
+- **`# gazelle:map_kind`** in [`BUILD.bazel`](BUILD.bazel) routes the abstract `ts_library` → `myorg_ts_library`, `ts_test` → `vitest_test`, and `ts_binary` → `myorg_ts_binary` (all from `//tools:ts.bzl`). Every emitted BUILD file uses the wrapper kinds.
 - **`# gazelle:resolve`** in [`BUILD.bazel`](BUILD.bazel) maps the virtual import `mystery:banner` to `//tools:mystery`. `apps/cli/main.ts` imports it; the type comes from a co-located `apps/cli/types.d.ts`.
 - **`# keep`** is shown in [`examples/composite/apps/web/BUILD.bazel`](../composite/apps/web/BUILD.bazel) — a `users.json` fixture is hand-added to `data` and survives every `bazel run //:gazelle`.
 

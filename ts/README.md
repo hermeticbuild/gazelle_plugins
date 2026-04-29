@@ -33,13 +33,16 @@ Then run `bazel run //:gazelle`.
 
 `@gazelle_ts//ts` is a Gazelle Language; you compose your own `gazelle_binary` so it can be combined with other languages (`go`, `python`, `proto`, …) into a single binary.
 
-The plugin emits three abstract kinds, all loaded from `@gazelle_ts//ts:defs.bzl`:
+The plugin emits four abstract kinds, all loaded from `@gazelle_ts//ts:defs.bzl`:
 
 - `ts_library` for libraries.
 - `ts_test` for tests — assumes a multi-entry runner (vitest, jest, mocha); no `entry_point` is set.
+- `ts_binary` for hand-written binary entry points — gazelle never generates these, but auto-manages the rule's `data` from `entry_point`/`srcs` imports (same lifecycle as stock `js_binary`).
 - `ts_bundler_config` for files matched by `ts_bundler_config_pattern`.
 
-Consumers must `# gazelle:map_kind` each to a project-specific macro (typically one-line wrappers over `ts_project` / `vitest_test` / etc.). The plugin deliberately does not take a transitive `aspect_rules_ts` or `aspect_rules_js` dependency, and project-specific macros want their own defaults (transpiler, tsconfig, project-references compile flags, entry_point picking). See [§ Running with a custom macro](#running-with-a-custom-macro-map_kind).
+Consumers must `# gazelle:map_kind` each to a project-specific macro (typically one-line wrappers over `ts_project` / `vitest_test` / `js_binary` / etc.). The plugin deliberately does not take a transitive `aspect_rules_ts` or `aspect_rules_js` dependency, and project-specific macros want their own defaults (transpiler, tsconfig, project-references compile flags, entry_point picking, NODE_OPTIONS, launcher script). See [§ Running with a custom macro](#running-with-a-custom-macro-map_kind).
+
+`js_binary` is recognized too as a legacy/concrete alternative — same `data`-management lifecycle as `ts_binary`, no abstract-kind wrapping needed when you're happy with stock rules_js.
 
 ## Architecture
 
@@ -216,6 +219,17 @@ Key behaviors:
 
 No `entry_point` — `ts_test` assumes a multi-entry runner (vitest, jest, mocha). Wrappers mapped to single-entry runners (stock `js_test`) need to pick one from `data` themselves.
 
+### `ts_binary` / `js_binary` (hand-written, data-managed)
+
+| Attr | Set by | Behavior |
+|---|---|---|
+| `name` | _user_ | hand-written |
+| `entry_point` / `srcs` | _user_ | hand-written; gazelle scans these for imports |
+| `data` | resolve | replaced each run with resolved deps from imports |
+| anything else | _untouched_ | manual overrides survive across runs |
+
+Gazelle never generates either kind. It piggybacks on the user's existing rule, scans `entry_point`/`srcs` for TS imports, and fills in `data`. Use `ts_binary` (abstract, lives at `@gazelle_ts//ts:defs.bzl`) when you want `# gazelle:map_kind` to swap implementations without touching gazelle config; use `js_binary` (concrete, from `@aspect_rules_js//js:defs.bzl`) when stock rules_js works as-is.
+
 ### `ts_bundler_config` (abstract)
 
 | Attr | Set by | Behavior |
@@ -244,6 +258,7 @@ All three kinds are abstract; wire each to a concrete macro at your root BUILD:
 ```starlark
 # gazelle:map_kind ts_library         myrepo_ts_library     //tools:ts.bzl
 # gazelle:map_kind ts_test            myrepo_ts_test        //tools:ts.bzl
+# gazelle:map_kind ts_binary          myrepo_ts_binary      //tools:ts.bzl
 # gazelle:map_kind ts_bundler_config  myrepo_bundler_config //tools:ts.bzl
 ```
 
@@ -275,6 +290,12 @@ def myrepo_ts_test(name, data, **kwargs):
             entry = d
             break
     js_test(name = name, data = data, entry_point = entry, **kwargs)
+
+def myrepo_ts_binary(name, **kwargs):
+    # Same pattern as a stock js_binary wrapper — gazelle keeps `data`
+    # in sync from the rule's entry_point/srcs imports; the wrapper
+    # bakes in launcher / NODE_OPTIONS / chdir defaults.
+    js_binary(name = name, **kwargs)
 
 def myrepo_bundler_config(name, srcs, **kwargs):
     ts_project(name = name, srcs = srcs, **kwargs)
