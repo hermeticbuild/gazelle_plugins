@@ -12,7 +12,12 @@ tasks:
     name: Build the Go gazelle plugin
     platform: ${{ platform }}
     bazel: ${{ bazel }}
+    # rules_rs's Linux rust toolchains gate their target_compatible_with on
+    # @llvm//constraints/libc:gnu.2.28. The default @platforms//host doesn't
+    # carry that constraint, so we pin host_platform to //platforms:local_gnu
+    # which adds it. Harmless on macOS (the constraint just sits unused).
+    # End consumers must mirror this in their own .bazelrc — see README.
     build_flags:
-      - "--toolchain_resolution_debug=.*rust.*"
+      - "--host_platform=@gazelle_ts//platforms:local_gnu"
     build_targets:
       - "@gazelle_ts//ts/..."
