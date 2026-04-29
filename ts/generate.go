@@ -56,24 +56,33 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 
-	// Hand-written js_binary rules in this BUILD that we manage `data` for.
-	// We never generate js_binary; we only piggyback on the user's existing
-	// rule, scan its entry_point/srcs for imports, and let Resolve set deps.
-	type jsBinaryRef struct {
+	// Hand-written binary rules in this BUILD whose `data` we manage. We
+	// never generate them — we piggyback on the user's existing rule,
+	// scan its entry_point/srcs for imports, and let Resolve set data.
+	// Both stock js_binary and the abstract ts_binary go through here.
+	type binaryRef struct {
+		kind  string
 		name  string
 		files []string // package-relative TS files referenced by the rule
 	}
-	var jsBinaries []jsBinaryRef
+	var binaries []binaryRef
 	if args.File != nil {
 		seen := make(map[string]bool, len(tsFiles))
 		for _, f := range tsFiles {
 			seen[f] = true
 		}
 		for _, r := range args.File.Rules {
-			if !kindMatches(args.Config, r.Kind(), KindJsBinary) {
+			canonical := ""
+			for _, k := range managedBinaryKinds {
+				if kindMatches(args.Config, r.Kind(), k) {
+					canonical = k
+					break
+				}
+			}
+			if canonical == "" {
 				continue
 			}
-			ref := jsBinaryRef{name: r.Name()}
+			ref := binaryRef{kind: canonical, name: r.Name()}
 			candidates := append([]string{r.AttrString("entry_point")}, r.AttrStrings("srcs")...)
 			for _, c := range candidates {
 				if c == "" || !isTypeScriptFile(c, cfg) {
@@ -87,7 +96,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 				}
 			}
 			if len(ref.files) > 0 {
-				jsBinaries = append(jsBinaries, ref)
+				binaries = append(binaries, ref)
 			}
 		}
 	}
@@ -117,7 +126,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 
-	if len(libSrcs) == 0 && len(testSrcs) == 0 && len(jsBinaries) == 0 && len(parts.bundlerConfigs) == 0 {
+	if len(libSrcs) == 0 && len(testSrcs) == 0 && len(binaries) == 0 && len(parts.bundlerConfigs) == 0 {
 		return language.GenerateResult{}
 	}
 
@@ -160,15 +169,16 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		})
 	}
 
-	// Existing js_binary rules — emit a placeholder so Resolve runs against
-	// each, but don't set any attrs. The merge engine keeps the user's
-	// entry_point, srcs, env, etc.; Resolve only fills in `data`.
-	for _, jb := range jsBinaries {
+	// Existing binary rules (js_binary, ts_binary) — emit a placeholder so
+	// Resolve runs against each, but don't set any attrs. The merge engine
+	// keeps the user's entry_point, srcs, env, etc.; Resolve fills in
+	// `data` from the entry_point/srcs imports.
+	for _, b := range binaries {
 		var imps []ImportStatement
-		for _, f := range jb.files {
+		for _, f := range b.files {
 			imps = append(imps, allImports[filepath.Join(args.Dir, f)]...)
 		}
-		genRules = append(genRules, rule.NewRule(KindJsBinary, jb.name))
+		genRules = append(genRules, rule.NewRule(b.kind, b.name))
 		genImports = append(genImports, ImportData{Imports: imps})
 	}
 

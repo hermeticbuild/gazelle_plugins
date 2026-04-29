@@ -231,6 +231,35 @@ func TestCollectSrcs_BundlerOverridesTest(t *testing.T) {
 	}
 }
 
+func TestManagedBinaryKinds_IncludesBoth(t *testing.T) {
+	// ts_binary and js_binary should both flow through the same data-attr
+	// management path. Drift here means the discovery loop in GenerateRules
+	// silently skips one of them.
+	want := map[string]bool{KindJsBinary: true, KindTsBinary: true}
+	got := map[string]bool{}
+	for _, k := range managedBinaryKinds {
+		got[k] = true
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("managedBinaryKinds = %v, want %v", got, want)
+	}
+}
+
+func TestKinds_HasTsBinary(t *testing.T) {
+	// Without a KindInfo entry the merge engine treats ts_binary rules as
+	// unmanaged: data wouldn't be a ResolveAttr and wouldn't be replaced.
+	if _, ok := tsKinds[KindTsBinary]; !ok {
+		t.Fatalf("tsKinds missing %q", KindTsBinary)
+	}
+	info := tsKinds[KindTsBinary]
+	if !info.ResolveAttrs["data"] {
+		t.Errorf("ts_binary should have data as ResolveAttr")
+	}
+	if !info.MergeableAttrs["data"] {
+		t.Errorf("ts_binary should have data as MergeableAttr")
+	}
+}
+
 func TestMatchBundlerConfigSpec_DoubleStar(t *testing.T) {
 	cfg := newTsConfig()
 	cfg.bundlerConfigSpecs = []bundlerConfigSpec{

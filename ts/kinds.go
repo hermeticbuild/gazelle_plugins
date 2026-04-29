@@ -16,27 +16,40 @@ import (
 // we do. This is how manually-set attrs like tsconfig overrides, transpiler
 // choices, or custom args survive gazelle runs.
 //
-// `ts_library`, `ts_test`, and `ts_bundler_config` are all abstract kinds —
-// the plugin emits them with the @gazelle_ts//ts:defs.bzl load path, and
-// consumers map_kind each to a project-specific macro:
+// `ts_library`, `ts_test`, `ts_binary`, and `ts_bundler_config` are all
+// abstract kinds — the plugin emits them with the @gazelle_ts//ts:defs.bzl
+// load path, and consumers map_kind each to a project-specific macro:
 //
 //	# gazelle:map_kind ts_library         <macro> <load_path>
 //	# gazelle:map_kind ts_test            <macro> <load_path>
+//	# gazelle:map_kind ts_binary          <macro> <load_path>
 //	# gazelle:map_kind ts_bundler_config  <macro> <load_path>
 //
 // `ts_test` assumes a multi-entry runner (vitest, jest, mocha): it's
 // emitted with `data` only, no `entry_point`. Wrappers can pick an entry
 // from data when needed by an underlying runner like js_test.
 //
-// js_binary is hand-written by the user (we never generate it). The plugin
-// only fills in `data` based on what its entry_point/srcs import.
-const KindJsBinary = "js_binary"
+// `ts_binary` and `js_binary` are both hand-written by the user — we never
+// generate them. The plugin scans the rule's `entry_point`/`srcs` imports
+// and fills in `data`, leaving everything else (env, fixed_args, launcher)
+// to the user. `ts_binary` is the abstract sibling of `ts_library` for
+// consumers who'd rather map_kind a single TS-flavored kind than reach for
+// stock `js_binary`.
+const (
+	KindJsBinary = "js_binary"
+	KindTsBinary = "ts_binary"
+)
 
 // KindBundlerConfig is the rule emitted for files matched by the
 // ts_bundler_config_pattern directive — a separate compilation unit so
 // bundler/tooling deps stay out of the library's runtime closure. Abstract
 // kind: consumers map_kind it to a real macro.
 const KindBundlerConfig = "ts_bundler_config"
+
+// managedBinaryKinds enumerates rule kinds where we discover a hand-written
+// rule, scan its entry_point/srcs for imports, and fill in `data`. Add a
+// new kind here when introducing another binary-shaped abstract.
+var managedBinaryKinds = []string{KindJsBinary, KindTsBinary}
 
 var tsKinds = map[string]rule.KindInfo{
 	KindTsLibrary: {
@@ -54,6 +67,13 @@ var tsKinds = map[string]rule.KindInfo{
 		},
 	},
 	KindJsBinary: {
+		NonEmptyAttrs:  map[string]bool{"name": true},
+		MergeableAttrs: map[string]bool{"data": true},
+		ResolveAttrs: map[string]bool{
+			"data": true,
+		},
+	},
+	KindTsBinary: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
 		MergeableAttrs: map[string]bool{"data": true},
 		ResolveAttrs: map[string]bool{
@@ -88,7 +108,7 @@ func (l *tsLang) Loads() []rule.LoadInfo {
 		},
 		{
 			Name:    "@gazelle_ts//ts:defs.bzl",
-			Symbols: []string{KindTsLibrary, KindTsTest, KindBundlerConfig},
+			Symbols: []string{KindTsLibrary, KindTsTest, KindTsBinary, KindBundlerConfig},
 		},
 	}
 }
