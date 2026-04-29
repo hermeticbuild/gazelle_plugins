@@ -62,17 +62,17 @@ func (l *tsLang) Resolve(
 	}
 
 	switch r.Kind() {
-	case cfg.libraryKind:
-		// Stock ts_project takes a single `deps` attr for both npm packages
-		// and ts_project-to-ts_project project references — `composite` on
-		// the dep is what TypeScript reads as a project reference.
+	case KindTsLibrary:
+		// The ts_library wrapper is expected to forward `deps` to its
+		// underlying ts_project (or equivalent). One attr for both npm
+		// packages and intra-repo project references.
 		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
 		setOrDelete(r, "deps", all)
 
-	case cfg.testKind:
-		// Stock js_test takes `data` for everything: every npm package, every
+	case KindTsTest:
+		// ts_test uses `data` for everything: every npm package, every
 		// internal lib the test imports, plus the test sources themselves
 		// (already added in GenerateRules). Merge into the existing data list.
 		testResolved := l.resolveImportsToDeps(c, importData.TestImports, from, ix, cfg)

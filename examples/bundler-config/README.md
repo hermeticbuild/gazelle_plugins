@@ -12,7 +12,7 @@ Demonstrates the `# gazelle:ts_bundler_config_pattern` directive: peeling bundle
 ├── vite.config.ts          # imports vite, @vitejs/plugin-react, ./viteHelpers
 ├── vitest.config.ts        # imports vitest/config
 ├── tailwind.config.ts      # imports tailwindcss types
-├── tools/bundler.bzl       # one-line ts_project wrapper for map_kind
+├── tools/ts.bzl            # one-line ts_project wrappers for map_kind
 └── tsconfig.json
 ```
 
@@ -21,37 +21,39 @@ Demonstrates the `# gazelle:ts_bundler_config_pattern` directive: peeling bundle
 After `bazel run //:gazelle`:
 
 ```python
-ts_project(
+ts_library(  # mapped to a ts_project wrapper at //tools:ts.bzl
     name = "lib",
     srcs = ["app.ts", "viteHelpers.ts"],
     deps = ["//:node_modules/@types/lodash-es", "//:node_modules/lodash-es"],
 )
 
-bundler_config(             # was ts_bundler_config; rewritten by map_kind
+ts_bundler_config(  # mapped to a ts_project wrapper at //tools:ts.bzl
     name = "vite_config",
     srcs = ["vite.config.ts"],
     deps = [
-        ":lib",             # because vite.config imports ./viteHelpers, which lives in :lib
+        ":lib",  # because vite.config imports ./viteHelpers, which lives in :lib
         "//:node_modules/@vitejs/plugin-react",
         "//:node_modules/vite",
     ],
 )
 
-bundler_config(name = "vitest_config", ...)
-bundler_config(name = "tailwind_config", ...)
+ts_bundler_config(name = "vitest_config", ...)
+ts_bundler_config(name = "tailwind_config", ...)
 ```
 
 Note: `vite`, `vitest`, `@vitejs/plugin-react`, `tailwindcss` are **not** on `:lib`'s deps. They live exclusively on the bundler-config targets.
 
 ## Map_kind is required
 
-`ts_bundler_config` is shipped as an abstract kind — gazelle_ts deliberately doesn't take a transitive `aspect_rules_ts` dependency. Each consumer wires their own concrete macro:
+All three gazelle-emitted kinds (`ts_library`, `ts_test`, `ts_bundler_config`) are abstract — gazelle_ts deliberately doesn't take a transitive `aspect_rules_ts` dependency. Each consumer wires their own concrete macros:
 
 ```
-# gazelle:map_kind ts_bundler_config bundler_config //tools:bundler.bzl
+# gazelle:map_kind ts_library ts_library //tools:ts.bzl
+# gazelle:map_kind ts_test ts_test //tools:ts.bzl
+# gazelle:map_kind ts_bundler_config ts_bundler_config //tools:ts.bzl
 ```
 
-`tools/bundler.bzl` here is a one-liner forwarding to `ts_project`. Real-world consumers customize defaults (transpiler, tsconfig, visibility) per their project.
+`tools/ts.bzl` here forwards each to `ts_project` / `js_test` with project-specific defaults baked in. Real-world consumers customize per their project (transpiler, tsconfig, visibility).
 
 ## Verifying the boundary
 

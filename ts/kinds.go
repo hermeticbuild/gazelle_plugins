@@ -16,37 +16,37 @@ import (
 // we do. This is how manually-set attrs like tsconfig overrides, transpiler
 // choices, or custom args survive gazelle runs.
 //
-// Note that we always emit the stock kinds (ts_project, js_test) here. When
-// the consumer applies `# gazelle:map_kind ts_project myrepo_ts_library …`,
-// gazelle rewrites the kind on disk but still uses these merge rules.
-// Stock rules_ts/rules_js attribute model:
-//   - ts_project uses `deps` for both npm packages and ts_project-to-ts_project
-//     project references; `composite = True` on the dep is what TypeScript
-//     reads as a project reference. There is no separate `references` attr.
-//   - js_test uses `data` for everything (test source, npm packages, fixtures)
-//     and `entry_point` to pick the .js file to run. There is no `srcs` or
-//     `deps` attr.
-//   - js_binary is hand-written by the user (we never generate it). The
-//     plugin only fills in `data` based on what its entry_point/srcs import,
-//     so the user manages name/entry_point/env/etc. themselves.
+// `ts_library`, `ts_test`, and `ts_bundler_config` are all abstract kinds —
+// the plugin emits them with the @gazelle_ts//ts:defs.bzl load path, and
+// consumers map_kind each to a project-specific macro:
+//
+//	# gazelle:map_kind ts_library         <macro> <load_path>
+//	# gazelle:map_kind ts_test            <macro> <load_path>
+//	# gazelle:map_kind ts_bundler_config  <macro> <load_path>
+//
+// `ts_test` assumes a multi-entry runner (vitest, jest, mocha): it's
+// emitted with `data` only, no `entry_point`. Wrappers can pick an entry
+// from data when needed by an underlying runner like js_test.
+//
+// js_binary is hand-written by the user (we never generate it). The plugin
+// only fills in `data` based on what its entry_point/srcs import.
 const KindJsBinary = "js_binary"
 
 // KindBundlerConfig is the rule emitted for files matched by the
 // ts_bundler_config_pattern directive — a separate compilation unit so
-// bundler/tooling deps stay out of the library's runtime closure. Loaded from
-// @gazelle_ts//ts:defs.bzl by default; consumers commonly map_kind it to a
-// project-specific macro.
+// bundler/tooling deps stay out of the library's runtime closure. Abstract
+// kind: consumers map_kind it to a real macro.
 const KindBundlerConfig = "ts_bundler_config"
 
 var tsKinds = map[string]rule.KindInfo{
-	defaultLibraryKind: {
+	KindTsLibrary: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
 		MergeableAttrs: map[string]bool{"srcs": true},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
 		},
 	},
-	defaultTestKind: {
+	KindTsTest: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
 		MergeableAttrs: map[string]bool{"data": true},
 		ResolveAttrs: map[string]bool{
@@ -83,16 +83,12 @@ func (l *tsLang) Kinds() map[string]rule.KindInfo {
 func (l *tsLang) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
-			Name:    "@aspect_rules_ts//ts:defs.bzl",
-			Symbols: []string{defaultLibraryKind},
-		},
-		{
 			Name:    "@aspect_rules_js//js:defs.bzl",
-			Symbols: []string{defaultTestKind, KindJsBinary},
+			Symbols: []string{KindJsBinary},
 		},
 		{
 			Name:    "@gazelle_ts//ts:defs.bzl",
-			Symbols: []string{KindBundlerConfig},
+			Symbols: []string{KindTsLibrary, KindTsTest, KindBundlerConfig},
 		},
 	}
 }

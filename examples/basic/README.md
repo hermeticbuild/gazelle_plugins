@@ -14,7 +14,7 @@ The smallest possible setup demonstrating the `ts` plugin: one TypeScript packag
 
 ## What this verifies
 
-- `ts_project` rule generated with `srcs`, `tsconfig`, `composite`/`declaration`/`source_map`.
+- `ts_library` rule generated with `srcs` + `deps`; mapped via `# gazelle:map_kind` to a one-line wrapper at `tools/ts.bzl` that adds `tsconfig` + `composite`/`declaration`/`source_map` and forwards to `ts_project`.
 - npm packages resolved from `package.json` via `//:node_modules/<pkg>`; `@types/lodash` auto-paired with `lodash`.
 - Node.js `node:path` resolved to `@types/node`.
 - `js_test` runs the `.ts` file directly under Node 22's type stripping.

@@ -3,11 +3,6 @@ load("//tools:ts.bzl", "myorg_ts_library")
 myorg_ts_library(
     name = "deep",
     srcs = ["stats.ts"],
-    composite = True,
-    declaration = True,
-    declaration_map = True,
-    source_map = True,
-    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/lodash",

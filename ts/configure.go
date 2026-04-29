@@ -9,23 +9,21 @@ import (
 )
 
 // All directives this plugin recognizes. Keep in sync with README.md.
+//
+// Notably absent: ts_library_kind / ts_test_kind / ts_project_references.
+// `# gazelle:map_kind` subsumes the kind overrides (and additionally lets
+// you pin the load path). Project-references compile flags belong in the
+// wrapper macro behind ts_library, not in the plugin's emitted attrs.
 const (
-	directiveEnabled         = "ts_enabled"
-	directiveLibraryName     = "ts_library_name"
-	directiveTestName        = "ts_test_name"
-	directiveLibraryKind     = "ts_library_kind"
-	directiveTestKind        = "ts_test_kind"
-	directiveVisibility      = "ts_visibility"
-	directiveTestPattern     = "ts_test_pattern"
-	directiveExtension       = "ts_extension"
-	directiveProjectRefs     = "ts_project_references"
-	directiveTsconfig        = "ts_tsconfig"
-	directiveTranspiler      = "ts_transpiler"
-	directiveNpmLinkPattern  = "ts_npm_link_pattern"
-	directiveGeneratedPackage = "ts_generated_package"
-	directiveTestData            = "ts_test_data"
-	directiveTestEntryPoint      = "ts_test_entry_point"
-	directiveTestEntryPointAuto  = "ts_test_entry_point_auto"
+	directiveEnabled              = "ts_enabled"
+	directiveLibraryName          = "ts_library_name"
+	directiveTestName             = "ts_test_name"
+	directiveVisibility           = "ts_visibility"
+	directiveTestPattern          = "ts_test_pattern"
+	directiveExtension            = "ts_extension"
+	directiveNpmLinkPattern       = "ts_npm_link_pattern"
+	directiveGeneratedPackage     = "ts_generated_package"
+	directiveTestData             = "ts_test_data"
 	directiveBundlerConfigPattern = "ts_bundler_config_pattern"
 )
 
@@ -42,19 +40,12 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveEnabled,
 		directiveLibraryName,
 		directiveTestName,
-		directiveLibraryKind,
-		directiveTestKind,
 		directiveVisibility,
 		directiveTestPattern,
 		directiveExtension,
-		directiveProjectRefs,
-		directiveTsconfig,
-		directiveTranspiler,
 		directiveNpmLinkPattern,
 		directiveGeneratedPackage,
 		directiveTestData,
-		directiveTestEntryPoint,
-		directiveTestEntryPointAuto,
 		directiveBundlerConfigPattern,
 	}
 }
@@ -101,14 +92,6 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		if val != "" {
 			cfg.testName = val
 		}
-	case directiveLibraryKind:
-		if val != "" {
-			cfg.libraryKind = val
-		}
-	case directiveTestKind:
-		if val != "" {
-			cfg.testKind = val
-		}
 	case directiveVisibility:
 		if val != "" {
 			cfg.visibility = splitFields(val)
@@ -121,12 +104,6 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		if val != "" {
 			cfg.extensions = appendUnique(cfg.extensions, val)
 		}
-	case directiveProjectRefs:
-		cfg.projectReferences = parseBool(val, cfg.projectReferences)
-	case directiveTsconfig:
-		cfg.tsconfig = val
-	case directiveTranspiler:
-		cfg.transpiler = val
 	case directiveNpmLinkPattern:
 		if val != "" {
 			cfg.npmLinkPattern = val
@@ -146,10 +123,6 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		if val != "" {
 			cfg.testData = appendUnique(cfg.testData, val)
 		}
-	case directiveTestEntryPoint:
-		cfg.testEntryPoint = val
-	case directiveTestEntryPointAuto:
-		cfg.testEntryPointAuto = parseBool(val, cfg.testEntryPointAuto)
 	case directiveBundlerConfigPattern:
 		// Format: `<glob> <name>`, e.g. `vite.config.* vite_config`. The
 		// glob is matched against package-relative file paths; <name> is

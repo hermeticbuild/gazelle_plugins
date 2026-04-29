@@ -5,10 +5,26 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	"github.com/bmatcuk/doublestar/v4"
 )
+
+// kindMatches returns true when ruleKind matches the canonical name, accounting
+// for `# gazelle:map_kind` rewrites: a rule on disk may carry the post-mapped
+// kind name even when our plugin emits and reasons about the canonical one.
+// Without this check we'd skip user-mapped js_binary rules and stop
+// auto-managing their `data` attr.
+func kindMatches(c *config.Config, ruleKind, canonical string) bool {
+	if ruleKind == canonical {
+		return true
+	}
+	if mapped, ok := c.KindMap[canonical]; ok && mapped.KindName == ruleKind {
+		return true
+	}
+	return false
+}
 
 // ImportData carries parsed imports from GenerateRules to Resolve. Gazelle
 // runs GenerateRules during the directory walk (before the RuleIndex is
@@ -54,7 +70,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			seen[f] = true
 		}
 		for _, r := range args.File.Rules {
-			if r.Kind() != KindJsBinary {
+			if !kindMatches(args.Config, r.Kind(), KindJsBinary) {
 				continue
 			}
 			ref := jsBinaryRef{name: r.Name()}
@@ -109,56 +125,34 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	var genImports []interface{}
 
 	if len(libSrcs) > 0 {
-		r := rule.NewRule(cfg.libraryKind, libName)
+		// Emit the abstract `ts_library` kind. Compilation-mode flags
+		// (composite, declaration, source_map, transpiler, tsconfig) are
+		// the wrapper macro's job — gazelle deliberately stays out of
+		// that decision so consumers can swap rules_ts for any equivalent
+		// rule set without rewiring the directive surface. The wrapper is
+		// reached via `# gazelle:map_kind ts_library <macro> <load_path>`.
+		r := rule.NewRule(KindTsLibrary, libName)
 		r.SetAttr("srcs", libSrcs)
 		if len(cfg.visibility) > 0 {
 			r.SetAttr("visibility", cfg.visibility)
-		}
-		if cfg.tsconfig != "" {
-			r.SetAttr("tsconfig", cfg.tsconfig)
-		}
-		if cfg.projectReferences {
-			// `composite = True` is what TypeScript reads as a project
-			// reference. The other flags match the tsconfig validator's
-			// expectations when the shared tsconfig has them on.
-			r.SetAttr("composite", true)
-			r.SetAttr("declaration", true)
-			r.SetAttr("declaration_map", true)
-			r.SetAttr("source_map", true)
 		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{Imports: sourceImports})
 	}
 
 	if len(testSrcs) > 0 {
-		// Stock js_test takes `data` (no srcs/deps). The entry_point is the
-		// .js file node runs; data carries every input the test sandbox
-		// needs (test source files, fixtures, npm packages, sibling lib).
-		r := rule.NewRule(cfg.testKind, testName)
+		// Emit the abstract ts_test kind. We assume a multi-entry runner
+		// (vitest, jest, mocha) — the wrapper macro behind the kind
+		// auto-discovers tests from `data` and doesn't need entry_point.
+		// `data` carries the test sources, fixtures, npm packages, and
+		// the sibling lib's compiled output.
+		r := rule.NewRule(KindTsTest, testName)
 		data := append([]string{}, testSrcs...)
 		data = append(data, cfg.testData...)
-		// When both a library and a test rule exist in the same directory,
-		// pull the library into the test's data so relative imports
-		// (./index.js, ./util.js, …) resolve to its compiled output.
 		if len(libSrcs) > 0 {
 			data = append(data, ":"+libName)
 		}
 		r.SetAttr("data", data)
-		// entry_point is required for stock js_test (Node needs a single
-		// script to run). Test runners that auto-discover (vitest, jest,
-		// mocha) don't need it — set ts_test_entry_point_auto=false to
-		// suppress the auto-pick when you've mapped the kind to such a
-		// runner.
-		if cfg.testEntryPoint != "" {
-			r.SetAttr("entry_point", cfg.testEntryPoint)
-		} else if cfg.testEntryPointAuto {
-			for _, s := range testSrcs {
-				if strings.HasSuffix(s, ".test.ts") || strings.HasSuffix(s, ".test.tsx") {
-					r.SetAttr("entry_point", s)
-					break
-				}
-			}
-		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{
 			Imports:     sourceImports,
@@ -211,20 +205,6 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		r.SetAttr("srcs", g.srcs)
 		if len(cfg.visibility) > 0 {
 			r.SetAttr("visibility", cfg.visibility)
-		}
-		if cfg.tsconfig != "" {
-			r.SetAttr("tsconfig", cfg.tsconfig)
-		}
-		if cfg.projectReferences {
-			// Mirror the lib's compile flags so the shared tsconfig's
-			// composite/declaration/sourceMap settings line up with the rule's
-			// attrs. The boundary the directive enforces is structural
-			// (separate compilation unit + lib-can't-import-config), not a
-			// difference in compiler flags.
-			r.SetAttr("composite", true)
-			r.SetAttr("declaration", true)
-			r.SetAttr("declaration_map", true)
-			r.SetAttr("source_map", true)
 		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{Imports: g.imports})

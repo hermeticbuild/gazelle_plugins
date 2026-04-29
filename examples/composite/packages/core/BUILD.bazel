@@ -1,12 +1,7 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("//tools:ts.bzl", "ts_library")
 
-ts_project(
+ts_library(
     name = "core",
     srcs = ["types.ts"],
-    composite = True,
-    declaration = True,
-    declaration_map = True,
-    source_map = True,
-    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )

@@ -17,19 +17,12 @@ func TestApplyDirective_Bools(t *testing.T) {
 	if !cfg.enabled {
 		t.Fatalf("ts_enabled true: cfg.enabled = false")
 	}
-	applyDirective(cfg, rule.Directive{Key: directiveProjectRefs, Value: "no"})
-	if cfg.projectReferences {
-		t.Fatalf("ts_project_references no: still true")
-	}
 }
 
 func TestApplyDirective_Strings(t *testing.T) {
 	cfg := newTsConfig()
 	applyDirective(cfg, rule.Directive{Key: directiveLibraryName, Value: "src"})
 	applyDirective(cfg, rule.Directive{Key: directiveTestName, Value: "spec"})
-	applyDirective(cfg, rule.Directive{Key: directiveLibraryKind, Value: "my_lib"})
-	applyDirective(cfg, rule.Directive{Key: directiveTestKind, Value: "my_test"})
-	applyDirective(cfg, rule.Directive{Key: directiveTsconfig, Value: "//:tsconfig"})
 	applyDirective(cfg, rule.Directive{Key: directiveNpmLinkPattern, Value: "//pnpm:node_modules/{pkg}"})
 
 	if cfg.libraryName != "src" {
@@ -37,15 +30,6 @@ func TestApplyDirective_Strings(t *testing.T) {
 	}
 	if cfg.testName != "spec" {
 		t.Errorf("testName = %q", cfg.testName)
-	}
-	if cfg.libraryKind != "my_lib" {
-		t.Errorf("libraryKind = %q", cfg.libraryKind)
-	}
-	if cfg.testKind != "my_test" {
-		t.Errorf("testKind = %q", cfg.testKind)
-	}
-	if cfg.tsconfig != "//:tsconfig" {
-		t.Errorf("tsconfig = %q", cfg.tsconfig)
 	}
 	if cfg.npmLinkPattern != "//pnpm:node_modules/{pkg}" {
 		t.Errorf("npmLinkPattern = %q", cfg.npmLinkPattern)
