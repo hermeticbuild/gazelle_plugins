@@ -12,5 +12,7 @@ tasks:
     name: Build the Go gazelle plugin
     platform: ${{ platform }}
     bazel: ${{ bazel }}
+    build_flags:
+      - "--toolchain_resolution_debug=.*rust.*"
     build_targets:
       - "@gazelle_ts//ts/..."
