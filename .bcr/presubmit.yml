@@ -1,6 +1,12 @@
 matrix:
+  # debian11 dropped — its glibc 2.31 keeps libdl as a separate object,
+  # and the cgo'd Rust staticlib link needs -ldl which rules_rs's
+  # stdlib_linkflags doesn't add for plain @platforms//os:linux. We add
+  # -ldl in //ts:BUILD.bazel as a clinkopt, which works on Ubuntu 22.04
+  # (glibc 2.35, libdl is a stub). Not validating debian11 in BCR until
+  # we ship a distribution that doesn't push the link surface to the
+  # consumer (prebuilt-staticlib follow-up).
   platform:
-    - debian11
     - macos
     - ubuntu2204
   bazel:
