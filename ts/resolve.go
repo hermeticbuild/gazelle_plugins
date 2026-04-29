@@ -71,6 +71,19 @@ func (l *tsLang) Resolve(
 		all = append(all, resolved.internal...)
 		setOrDelete(r, "deps", all)
 
+		// Per-attr buckets fed by `ts_config_file` matches. Each entry's
+		// imports are resolved using the same logic as `deps` (npm + internal
+		// labels), then emitted onto the named attr. If multiple specs route
+		// to the same attr (e.g. `vite.config.*` and `tailwind.config.ts`
+		// both → `vite_config_deps`), GenerateRules already merged them in
+		// ConfigImports[attr].
+		for attr, imps := range importData.ConfigImports {
+			res := l.resolveImportsToDeps(c, imps, from, ix, cfg)
+			deps := append([]string{}, res.external...)
+			deps = append(deps, res.internal...)
+			setOrDelete(r, attr, deps)
+		}
+
 	case cfg.testKind:
 		// Stock js_test takes `data` for everything: every npm package, every
 		// internal lib the test imports, plus the test sources themselves

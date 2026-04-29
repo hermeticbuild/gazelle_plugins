@@ -10,22 +10,23 @@ import (
 
 // All directives this plugin recognizes. Keep in sync with README.md.
 const (
-	directiveEnabled         = "ts_enabled"
-	directiveLibraryName     = "ts_library_name"
-	directiveTestName        = "ts_test_name"
-	directiveLibraryKind     = "ts_library_kind"
-	directiveTestKind        = "ts_test_kind"
-	directiveVisibility      = "ts_visibility"
-	directiveTestPattern     = "ts_test_pattern"
-	directiveExtension       = "ts_extension"
-	directiveProjectRefs     = "ts_project_references"
-	directiveTsconfig        = "ts_tsconfig"
-	directiveTranspiler      = "ts_transpiler"
-	directiveNpmLinkPattern  = "ts_npm_link_pattern"
-	directiveGeneratedPackage = "ts_generated_package"
+	directiveEnabled            = "ts_enabled"
+	directiveLibraryName        = "ts_library_name"
+	directiveTestName           = "ts_test_name"
+	directiveLibraryKind        = "ts_library_kind"
+	directiveTestKind           = "ts_test_kind"
+	directiveVisibility         = "ts_visibility"
+	directiveTestPattern        = "ts_test_pattern"
+	directiveExtension          = "ts_extension"
+	directiveProjectRefs        = "ts_project_references"
+	directiveTsconfig           = "ts_tsconfig"
+	directiveTranspiler         = "ts_transpiler"
+	directiveNpmLinkPattern     = "ts_npm_link_pattern"
+	directiveGeneratedPackage   = "ts_generated_package"
 	directiveTestData           = "ts_test_data"
 	directiveTestEntryPoint     = "ts_test_entry_point"
 	directiveTestEntryPointAuto = "ts_test_entry_point_auto"
+	directiveConfigFile         = "ts_config_file"
 )
 
 // RegisterFlags is a no-op — all configuration is via BUILD-file directives.
@@ -54,6 +55,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveTestData,
 		directiveTestEntryPoint,
 		directiveTestEntryPointAuto,
+		directiveConfigFile,
 	}
 }
 
@@ -82,6 +84,17 @@ func (l *tsLang) Configure(c *config.Config, rel string, f *rule.File) {
 		// package.json imports map. Directives win on key collisions.
 		for k, v := range cfg.generatedPackages {
 			l.subpathImportsMap[k] = v
+		}
+	}
+
+	// Register every config-file attr seen so far as a resolved attr on the
+	// (default and configured) library kinds. Done on every Configure call —
+	// it's idempotent — so attrs declared in deeper directories still
+	// register before that directory's MergeRules runs.
+	for _, spec := range cfg.configFiles {
+		l.ensureResolveAttr(defaultLibraryKind, spec.attr)
+		if cfg.libraryKind != defaultLibraryKind {
+			l.ensureResolveAttr(cfg.libraryKind, spec.attr)
 		}
 	}
 }
@@ -148,6 +161,17 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		cfg.testEntryPoint = val
 	case directiveTestEntryPointAuto:
 		cfg.testEntryPointAuto = parseBool(val, cfg.testEntryPointAuto)
+	case directiveConfigFile:
+		// Format: `<glob> <attr>` — e.g. `vite.config.* vite_config_deps`.
+		// Files matching the glob are held out of library `srcs` and their
+		// imports are routed to the named attr on the library rule.
+		fields := strings.Fields(val)
+		if len(fields) == 2 && fields[0] != "" && fields[1] != "" {
+			cfg.configFiles = append(cfg.configFiles, configFileSpec{
+				pattern: fields[0],
+				attr:    fields[1],
+			})
+		}
 	}
 }
 

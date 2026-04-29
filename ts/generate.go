@@ -15,6 +15,12 @@ import (
 type ImportData struct {
 	Imports     []ImportStatement // source-file imports
 	TestImports []ImportStatement // test-file imports
+
+	// ConfigImports holds imports parsed from files matched by `ts_config_file`
+	// directives, keyed by the target attr declared on the directive. Resolve
+	// emits each entry as a separate attr on the library rule. Order doesn't
+	// matter; the resolver dedupes and sorts.
+	ConfigImports map[string][]ImportStatement
 }
 
 // GenerateRules walks a directory's files, partitions them into source vs.
@@ -28,7 +34,8 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	}
 
 	libName, testName := resolveRuleNames(cfg, args.Rel)
-	libSrcs, testSrcs := collectSrcs(args.RegularFiles, cfg)
+	configMatches := matchConfigFiles(args.RegularFiles, cfg)
+	libSrcs, testSrcs := collectSrcs(args.RegularFiles, cfg, configMatches)
 
 	var tsFiles []string
 	for _, f := range args.RegularFiles {
@@ -74,6 +81,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	}
 
 	var sourceImports, testImports []ImportStatement
+	configImports := map[string][]ImportStatement{}
 	allImports := map[string][]ImportStatement{}
 	if len(tsFiles) > 0 {
 		allImports, _ = l.extractImportsBatch(tsFiles)
@@ -83,6 +91,10 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			}
 			fullPath := filepath.Join(args.Dir, f)
 			imps := allImports[fullPath]
+			if attr, ok := configMatches[f]; ok {
+				configImports[attr] = append(configImports[attr], imps...)
+				continue
+			}
 			if isTestFile(f, cfg) {
 				testImports = append(testImports, imps...)
 			} else {
@@ -91,16 +103,18 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 
-	if len(libSrcs) == 0 && len(testSrcs) == 0 && len(jsBinaries) == 0 {
+	if len(libSrcs) == 0 && len(testSrcs) == 0 && len(jsBinaries) == 0 && len(configImports) == 0 {
 		return language.GenerateResult{}
 	}
 
 	var genRules []*rule.Rule
 	var genImports []interface{}
 
-	if len(libSrcs) > 0 {
+	if len(libSrcs) > 0 || len(configImports) > 0 {
 		r := rule.NewRule(cfg.libraryKind, libName)
-		r.SetAttr("srcs", libSrcs)
+		if len(libSrcs) > 0 {
+			r.SetAttr("srcs", libSrcs)
+		}
 		if len(cfg.visibility) > 0 {
 			r.SetAttr("visibility", cfg.visibility)
 		}
@@ -117,7 +131,10 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			r.SetAttr("source_map", true)
 		}
 		genRules = append(genRules, r)
-		genImports = append(genImports, ImportData{Imports: sourceImports})
+		genImports = append(genImports, ImportData{
+			Imports:       sourceImports,
+			ConfigImports: configImports,
+		})
 	}
 
 	if len(testSrcs) > 0 {
@@ -254,18 +271,52 @@ func matchTestPattern(pattern, name string) bool {
 }
 
 // collectSrcs partitions the directory's files into library and test srcs,
-// each sorted for deterministic BUILD output.
-func collectSrcs(regularFiles []string, cfg *tsConfig) (libFiles, testFiles []string) {
+// each sorted for deterministic BUILD output. Files appearing in
+// configMatches are excluded from both — they're owned by the bundler /
+// downstream macro, not the lib's compilation unit.
+func collectSrcs(regularFiles []string, cfg *tsConfig, configMatches map[string]string) (libFiles, testFiles []string) {
 	for _, f := range regularFiles {
+		if !isTypeScriptFile(f, cfg) {
+			continue
+		}
+		if _, isConfig := configMatches[f]; isConfig {
+			continue
+		}
 		if isTestFile(f, cfg) {
-			if isTypeScriptFile(f, cfg) {
-				testFiles = append(testFiles, f)
-			}
-		} else if isTypeScriptFile(f, cfg) {
+			testFiles = append(testFiles, f)
+		} else {
 			libFiles = append(libFiles, f)
 		}
 	}
 	sort.Strings(libFiles)
 	sort.Strings(testFiles)
 	return
+}
+
+// matchConfigFiles maps each file matched by a `ts_config_file` directive to
+// the attr it routes to. When multiple specs match the same file the longest
+// pattern wins, so e.g. `vite.config.production.ts` (matched by
+// `vite.config.production.*`) beats a broader `vite.config.*` if both are
+// declared.
+func matchConfigFiles(regularFiles []string, cfg *tsConfig) map[string]string {
+	if len(cfg.configFiles) == 0 {
+		return nil
+	}
+	specs := append([]configFileSpec(nil), cfg.configFiles...)
+	sort.SliceStable(specs, func(i, j int) bool {
+		return len(specs[i].pattern) > len(specs[j].pattern)
+	})
+	matches := map[string]string{}
+	for _, f := range regularFiles {
+		if !isTypeScriptFile(f, cfg) {
+			continue
+		}
+		for _, s := range specs {
+			if matchTestPattern(s.pattern, f) {
+				matches[f] = s.attr
+				break
+			}
+		}
+	}
+	return matches
 }

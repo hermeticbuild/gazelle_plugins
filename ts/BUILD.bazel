@@ -60,6 +60,7 @@ go_test(
     srcs = [
         "config_test.go",
         "generate_test.go",
+        "kinds_test.go",
         "resolve_test.go",
     ],
     # Mirror the go_library's clinkopts — go_test re-links and the

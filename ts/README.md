@@ -120,6 +120,7 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_generated_package` | _(from `package.json` `imports`)_ | Repeatable `pattern=target` entries; maps a generated/synthetic package namespace to a Bazel label. Merged on top of `package.json`. |
 | `ts_test_data` | _(empty)_ | Repeatable; appended to every test rule's `data`. |
 | `ts_test_entry_point` | _first matching `*.test.ts*`_ | Override the entry point picked for tests. |
+| `ts_config_file` | _(empty)_ | Repeatable `<glob> <attr>` entries. Files matching the glob are excluded from the library `srcs` and their imports are routed to the named attr on the library rule. Use for bundler/tooling configs (e.g. `vite.config.ts`, `tailwind.config.ts`) that must not be part of the library's compilation unit. |
 
 ### `ts_generated_package` examples
 
@@ -135,6 +136,24 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 
 The first form (target starts with `//` or `@`) is taken as a Bazel label literal. The second form (relative path) is treated as a workspace path; the plugin walks the rule index to find the longest matching package.
 
+### `ts_config_file` examples
+
+Bundler / tooling config files often live alongside library sources but must not be part of the library's compilation unit (a separate, isolated typecheck of the config file is what catches accidental coupling between app code and bundler config). Use `ts_config_file` to pull them out of `srcs` and emit their imports to a separate attr on the library rule that the consumer macro can then forward to a sibling action.
+
+```
+# Vite config files: route to a `vite_config_deps` attr that a wrapping macro
+# can wire into a separate js_library / typecheck action.
+# gazelle:ts_config_file vite.config.* vite_config_deps
+# gazelle:ts_config_file tailwind.config.ts vite_config_deps
+
+# Storybook
+# gazelle:ts_config_file .storybook/main.ts storybook_deps
+```
+
+Glob support matches the `ts_test_pattern` matcher: `*` is a path-segment wildcard (`vite.config.*` matches `vite.config.ts`, `vite.config.production.ts`), `**` spans directories. When multiple specs match the same file the longest pattern wins.
+
+The attr name is opaque to the plugin — it can be anything your consumer macro accepts. The merger replaces this attr's value on every gazelle run, the same as `deps`.
+
 ## Generated attrs
 
 ### `ts_project`
@@ -148,6 +167,7 @@ The first form (target starts with `//` or `@`) is taken as a Bazel label litera
 | `references` | resolve | replaced when `ts_project_references = true` |
 | `composite`, `declaration`, `source_map` | generate | only when `ts_project_references = true` |
 | `tsconfig` | generate | only when `ts_tsconfig` directive is set |
+| _per-attr config bucket_ (e.g. `vite_config_deps`) | resolve | replaced when matching `ts_config_file` directives are declared |
 | anything else | _untouched_ | manual overrides survive across runs |
 
 ### `js_test`

@@ -44,6 +44,12 @@ type tsLang struct {
 	// e.g. `"#packages/*": "./packages/*"`. Augmented per-tree by
 	// # gazelle:ts_subpath_import directives in configure.go.
 	subpathImportsMap map[string]string
+
+	// kindInfos is the live KindInfo map returned by Kinds(). Mutable: when
+	// directives like `ts_config_file` introduce new resolved attrs, they're
+	// added to the relevant kind's ResolveAttrs during Configure so gazelle's
+	// merger replaces them on re-runs instead of preserving stale values.
+	kindInfos map[string]rule.KindInfo
 }
 
 // NewLanguage creates a new TypeScript Gazelle language extension.
@@ -51,6 +57,7 @@ func NewLanguage() language.Language {
 	return &tsLang{
 		packageDeps:       make(map[string]bool),
 		subpathImportsMap: make(map[string]string),
+		kindInfos:         defaultKindInfos(),
 	}
 }
 

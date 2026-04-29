@@ -85,20 +85,37 @@ type tsConfig struct {
 	// auto-discovers tests — vitest_test, jest_test, mocha_test — where an
 	// emitted entry_point is meaningless or wrong.
 	testEntryPointAuto bool
+
+	// configFiles describes config-file partitions. Each entry routes files
+	// matching its glob OUT of the library `srcs` and into a separate
+	// per-attr import bundle on the library rule. Use case: `vite.config.ts`
+	// and `tailwind.config.ts` are TypeScript files that must not be part of
+	// the library's compilation unit (they're consumed by the bundler tool),
+	// but their imports need to be tracked. Repeatable; longest pattern wins
+	// when a file matches multiple entries.
+	configFiles []configFileSpec
+}
+
+// configFileSpec is one entry from a `# gazelle:ts_config_file <glob> <attr>`
+// directive. Files matching `pattern` are excluded from library srcs and
+// their resolved imports are emitted onto the library rule under `attr`.
+type configFileSpec struct {
+	pattern string
+	attr    string
 }
 
 // newTsConfig returns a config populated with all defaults.
 func newTsConfig() *tsConfig {
 	return &tsConfig{
-		enabled:           true,
-		libraryName:       defaultLibraryName,
-		testName:          defaultTestName,
-		libraryKind:       defaultLibraryKind,
-		testKind:          defaultTestKind,
-		visibility:        append([]string(nil), defaultVisibility...),
-		testPatterns:      append([]string(nil), defaultTestPatterns...),
-		extensions:        append([]string(nil), defaultExtensions...),
-		projectReferences: defaultProjectReferences,
+		enabled:            true,
+		libraryName:        defaultLibraryName,
+		testName:           defaultTestName,
+		libraryKind:        defaultLibraryKind,
+		testKind:           defaultTestKind,
+		visibility:         append([]string(nil), defaultVisibility...),
+		testPatterns:       append([]string(nil), defaultTestPatterns...),
+		extensions:         append([]string(nil), defaultExtensions...),
+		projectReferences:  defaultProjectReferences,
 		npmLinkPattern:     defaultNpmLinkPattern,
 		generatedPackages:  make(map[string]string),
 		testEntryPointAuto: true,
@@ -117,5 +134,6 @@ func (c *tsConfig) clone() *tsConfig {
 	for k, v := range c.generatedPackages {
 		cp.generatedPackages[k] = v
 	}
+	cp.configFiles = append([]configFileSpec(nil), c.configFiles...)
 	return &cp
 }

@@ -31,33 +31,69 @@ import (
 //     so the user manages name/entry_point/env/etc. themselves.
 const KindJsBinary = "js_binary"
 
-var tsKinds = map[string]rule.KindInfo{
-	defaultLibraryKind: {
-		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"srcs": true},
-		ResolveAttrs: map[string]bool{
-			"deps": true,
+// defaultKindInfos returns a fresh KindInfo map seeded with the stock rule
+// kinds and their default mergeable/resolve attrs. The returned map is owned
+// by the language instance (l.kindInfos) and may be mutated during Configure
+// to register additional resolve attrs introduced by directives.
+func defaultKindInfos() map[string]rule.KindInfo {
+	return map[string]rule.KindInfo{
+		defaultLibraryKind: {
+			NonEmptyAttrs:  map[string]bool{"name": true},
+			MergeableAttrs: map[string]bool{"srcs": true},
+			ResolveAttrs: map[string]bool{
+				"deps": true,
+			},
 		},
-	},
-	defaultTestKind: {
-		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"data": true},
-		ResolveAttrs: map[string]bool{
-			"data": true,
+		defaultTestKind: {
+			NonEmptyAttrs:  map[string]bool{"name": true},
+			MergeableAttrs: map[string]bool{"data": true},
+			ResolveAttrs: map[string]bool{
+				"data": true,
+			},
 		},
-	},
-	KindJsBinary: {
-		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"data": true},
-		ResolveAttrs: map[string]bool{
-			"data": true,
+		KindJsBinary: {
+			NonEmptyAttrs:  map[string]bool{"name": true},
+			MergeableAttrs: map[string]bool{"data": true},
+			ResolveAttrs: map[string]bool{
+				"data": true,
+			},
 		},
-	},
+	}
 }
 
-// Kinds tells Gazelle which rule types this plugin manages.
+// ensureResolveAttr makes `attr` a resolved attr on `kind` so the gazelle
+// merger replaces (rather than preserves) its value across re-runs. Called
+// from Configure when directives declare new attrs the resolver will set.
+//
+// Safe across goroutines only because Configure is single-threaded per
+// gazelle's API contract.
+func (l *tsLang) ensureResolveAttr(kind, attr string) {
+	if kind == "" || attr == "" {
+		return
+	}
+	info, ok := l.kindInfos[kind]
+	if !ok {
+		// Synthesize a minimal KindInfo so out-of-the-box ts_library_kind
+		// overrides also benefit. The merger only looks at NonEmptyAttrs /
+		// MergeableAttrs / ResolveAttrs, all of which are populated below.
+		info = rule.KindInfo{
+			NonEmptyAttrs:  map[string]bool{"name": true},
+			MergeableAttrs: map[string]bool{"srcs": true},
+			ResolveAttrs:   map[string]bool{},
+		}
+	}
+	if info.ResolveAttrs == nil {
+		info.ResolveAttrs = map[string]bool{}
+	}
+	info.ResolveAttrs[attr] = true
+	l.kindInfos[kind] = info
+}
+
+// Kinds tells Gazelle which rule types this plugin manages. Returns a live
+// reference: directive-driven mutations made during Configure are visible to
+// merger calls in the same gazelle run.
 func (l *tsLang) Kinds() map[string]rule.KindInfo {
-	return tsKinds
+	return l.kindInfos
 }
 
 // Loads declares the .bzl files that provide the rule kinds we generate.
