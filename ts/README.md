@@ -120,6 +120,7 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_generated_package` | _(from `package.json` `imports`)_ | Repeatable `pattern=target` entries; maps a generated/synthetic package namespace to a Bazel label. Merged on top of `package.json`. |
 | `ts_test_data` | _(empty)_ | Repeatable; appended to every test rule's `data`. |
 | `ts_test_entry_point` | _first matching `*.test.ts*`_ | Override the entry point picked for tests. |
+| `ts_bundler_config_pattern` | _(empty)_ | Repeatable `<glob> <name>` entries. Files matching the glob are excluded from the library and emitted as a separate `ts_bundler_config` target named `<name>`. Use for vite/vitest/tailwind/storybook configs whose deps should not enter the lib's compilation closure. |
 
 ### `ts_generated_package` examples
 
@@ -134,6 +135,68 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 ```
 
 The first form (target starts with `//` or `@`) is taken as a Bazel label literal. The second form (relative path) is treated as a workspace path; the plugin walks the rule index to find the longest matching package.
+
+### `ts_bundler_config_pattern` examples
+
+Bundler/tooling config files (vite, vitest, tailwind, storybook) typically live alongside library sources but pull in build-time-only deps (`vite`, `@vitejs/plugin-react`, `vitest`) that should not enter the library's runtime closure. Worse, if those deps end up on the library rule, nothing structurally prevents lib code from importing the config file and re-introducing the coupling. `ts_bundler_config_pattern` peels each matched file into a separate `ts_bundler_config` target so it typechecks as its own compilation unit.
+
+```
+# gazelle:ts_bundler_config_pattern vite.config.* vite_config
+# gazelle:ts_bundler_config_pattern vitest.config.* vitest_config
+# gazelle:ts_bundler_config_pattern tailwind.config.ts tailwind_config
+# gazelle:ts_bundler_config_pattern .storybook/main.ts storybook_config
+```
+
+For a package laid out like:
+
+```
+app/
+├── BUILD.bazel
+├── index.ts                # imports react, ./helpers
+├── helpers.ts              # imports lodash
+├── vite.config.ts          # imports vite, @vitejs/plugin-react, ./viteHelpers
+├── viteHelpers.ts          # imports node:path
+└── index.test.ts           # imports vitest, ./index
+```
+
+the plugin emits:
+
+```python
+ts_project(
+    name = "app",
+    srcs = ["helpers.ts", "index.ts", "viteHelpers.ts"],
+    deps = ["//:node_modules/lodash", "//:node_modules/react"],
+)
+
+ts_bundler_config(
+    name = "vite_config",
+    srcs = ["vite.config.ts"],
+    deps = [
+        "//:node_modules/@vitejs/plugin-react",
+        "//:node_modules/vite",
+        ":app",  # vite.config.ts imports ./viteHelpers, which lives in :app
+    ],
+)
+
+js_test(
+    name = "app_test",
+    data = [":app", "//:node_modules/vitest", "index.test.ts"],
+    entry_point = "index.test.ts",
+)
+```
+
+Key behaviors:
+
+- **Glob syntax** is full doublestar: `*` is a single-segment wildcard (`vite.config.*` matches `vite.config.ts`, `vite.config.production.ts`); `**` spans directories.
+- **Longest pattern wins** when multiple specs match the same file.
+- **Bundler-config classification overrides the test split** — a file matching both `*.test.ts` and a bundler-config pattern goes to the bundler-config target.
+- **Multiple specs may share a name** — pointing several patterns at one target merges their files into a single rule.
+- **Helpers stay in lib.** If `vite.config.ts` and `lib.ts` both import `./shared.ts`, `shared.ts` lands in the library and the bundler-config target adds `:lib` to its deps. The closure leaks bundler→lib but never lib→bundler.
+- **`lib.ts` importing a bundler-config file is a build error.** The resolver does not route the import to the bundler-config target; the import goes unresolved and ts_project fails. This is the boundary the directive enforces — silently re-routing would defeat the purpose.
+
+`ts_bundler_config` is an **abstract kind**. The plugin emits the rule with the kind name unchanged; consumers must wire it to a concrete macro via `# gazelle:map_kind ts_bundler_config <your_macro> <your_load_path>` in the root BUILD.bazel. A typical implementation is a one-line wrapper over `ts_project` (see [`examples/bundler-config`](../examples/bundler-config) for a complete walkthrough).
+
+The plugin deliberately does not ship a default macro — that would force a transitive `aspect_rules_ts` dependency on the gazelle_ts module, which (a) couples a Gazelle plugin to a specific TS rules version and (b) interacts poorly with Bazel-version-incompatible toolchains in transitive rules_nodejs releases. The distinct kind name is the actual lever for project customization: `map_kind ts_bundler_config <macro>` rewrites bundler-config emissions independently of lib `ts_project`s.
 
 ## Generated attrs
 
@@ -160,6 +223,17 @@ The first form (target starts with `//` or `@`) is taken as a Bazel label litera
 | `deps` | resolve | replaced each run |
 | `entry_point` | generate | from `ts_test_entry_point` or first `*.test.ts*` |
 | anything else | _untouched_ | |
+
+### `ts_bundler_config`
+
+| Attr | Set by | Behavior |
+|---|---|---|
+| `name` | generate | from the directive's `<name>` argument |
+| `srcs` | generate | mergeable; one entry per matched file |
+| `visibility` | generate | overwritten each run |
+| `deps` | resolve | replaced each run; includes sibling lib label when the config has any relative imports |
+| `tsconfig` | generate | only when `ts_tsconfig` directive is set |
+| anything else | _untouched_ | manual overrides survive across runs |
 
 ## How import resolution works
 

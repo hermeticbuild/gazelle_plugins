@@ -23,9 +23,10 @@ const (
 	directiveTranspiler      = "ts_transpiler"
 	directiveNpmLinkPattern  = "ts_npm_link_pattern"
 	directiveGeneratedPackage = "ts_generated_package"
-	directiveTestData           = "ts_test_data"
-	directiveTestEntryPoint     = "ts_test_entry_point"
-	directiveTestEntryPointAuto = "ts_test_entry_point_auto"
+	directiveTestData            = "ts_test_data"
+	directiveTestEntryPoint      = "ts_test_entry_point"
+	directiveTestEntryPointAuto  = "ts_test_entry_point_auto"
+	directiveBundlerConfigPattern = "ts_bundler_config_pattern"
 )
 
 // RegisterFlags is a no-op — all configuration is via BUILD-file directives.
@@ -54,6 +55,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveTestData,
 		directiveTestEntryPoint,
 		directiveTestEntryPointAuto,
+		directiveBundlerConfigPattern,
 	}
 }
 
@@ -148,6 +150,23 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		cfg.testEntryPoint = val
 	case directiveTestEntryPointAuto:
 		cfg.testEntryPointAuto = parseBool(val, cfg.testEntryPointAuto)
+	case directiveBundlerConfigPattern:
+		// Format: `<glob> <name>`, e.g. `vite.config.* vite_config`. The
+		// glob is matched against package-relative file paths; <name> is
+		// the literal Bazel target name for the emitted ts_bundler_config
+		// rule. Malformed entries (missing one or both fields) are silently
+		// ignored — keeps gazelle runs robust against in-progress edits.
+		fields := strings.Fields(val)
+		if len(fields) != 2 {
+			return
+		}
+		spec := bundlerConfigSpec{Pattern: fields[0], Name: fields[1]}
+		for _, existing := range cfg.bundlerConfigSpecs {
+			if existing == spec {
+				return
+			}
+		}
+		cfg.bundlerConfigSpecs = append(cfg.bundlerConfigSpecs, spec)
 	}
 }
 

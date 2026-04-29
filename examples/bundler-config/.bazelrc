@@ -1,0 +1,8 @@
+common --enable_platform_specific_config
+common:linux --host_platform=@gazelle_ts//platforms:local_gnu
+
+build --show_result=0
+test --test_output=errors
+
+common --@aspect_rules_ts//ts:default_to_tsc_transpiler=True
+test --test_env=NODE_OPTIONS=--experimental-transform-types

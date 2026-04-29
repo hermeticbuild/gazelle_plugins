@@ -93,6 +93,31 @@ func (l *tsLang) Resolve(
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
 		setOrDelete(r, "data", all)
+
+	case KindBundlerConfig:
+		// Bundler-config rules are a separate compilation unit so build-time
+		// deps don't enter the lib's runtime closure. Resolution mirrors the
+		// library, plus a sibling-lib link when the config imports any
+		// relative file (e.g. `vite.config.ts` importing `./viteHelpers.ts`):
+		// helpers stay in the lib target and the bundler-config depends on
+		// it. The asymmetry is intentional — the closure leaks bundler→lib
+		// but never lib→bundler.
+		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
+		all := append([]string{}, resolved.external...)
+		all = append(all, resolved.internal...)
+		for _, imp := range importData.Imports {
+			if !strings.HasPrefix(imp.ImportPath, ".") {
+				continue
+			}
+			spec := resolve.ImportSpec{Lang: languageName, Imp: from.Pkg}
+			found := ix.FindRulesByImportWithConfig(c, spec, languageName)
+			if len(found) == 0 {
+				break
+			}
+			all = append(all, found[0].Label.Rel(from.Repo, from.Pkg).String())
+			break
+		}
+		setOrDelete(r, "deps", all)
 	}
 }
 

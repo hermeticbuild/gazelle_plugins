@@ -31,6 +31,13 @@ import (
 //     so the user manages name/entry_point/env/etc. themselves.
 const KindJsBinary = "js_binary"
 
+// KindBundlerConfig is the rule emitted for files matched by the
+// ts_bundler_config_pattern directive — a separate compilation unit so
+// bundler/tooling deps stay out of the library's runtime closure. Loaded from
+// @gazelle_ts//ts:defs.bzl by default; consumers commonly map_kind it to a
+// project-specific macro.
+const KindBundlerConfig = "ts_bundler_config"
+
 var tsKinds = map[string]rule.KindInfo{
 	defaultLibraryKind: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
@@ -51,6 +58,13 @@ var tsKinds = map[string]rule.KindInfo{
 		MergeableAttrs: map[string]bool{"data": true},
 		ResolveAttrs: map[string]bool{
 			"data": true,
+		},
+	},
+	KindBundlerConfig: {
+		NonEmptyAttrs:  map[string]bool{"name": true},
+		MergeableAttrs: map[string]bool{"srcs": true},
+		ResolveAttrs: map[string]bool{
+			"deps": true,
 		},
 	},
 }
@@ -75,6 +89,10 @@ func (l *tsLang) Loads() []rule.LoadInfo {
 		{
 			Name:    "@aspect_rules_js//js:defs.bzl",
 			Symbols: []string{defaultTestKind, KindJsBinary},
+		},
+		{
+			Name:    "@gazelle_ts//ts:defs.bzl",
+			Symbols: []string{KindBundlerConfig},
 		},
 	}
 }

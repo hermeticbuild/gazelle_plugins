@@ -1,0 +1,111 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:bundler.bzl", "bundler_config")
+
+# Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
+npm_link_all_packages(name = "node_modules")
+
+# Shared tsconfig — referenced by every ts_project via `ts_tsconfig`.
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+# gazelle:ts_tsconfig //:tsconfig
+
+# Peel bundler/tooling configs out of the library compilation unit. Each
+# directive emits a separate `ts_bundler_config` target so build-time deps
+# (vite, vitest, tailwind) never enter the library's runtime closure, and
+# accidental `import './vite.config'` from lib code fails at typecheck.
+# gazelle:ts_bundler_config_pattern vite.config.* vite_config
+# gazelle:ts_bundler_config_pattern vitest.config.* vitest_config
+# gazelle:ts_bundler_config_pattern tailwind.config.ts tailwind_config
+
+# `ts_bundler_config` is an abstract kind — rewrite to our concrete macro
+# in //tools:bundler.bzl. lib `ts_project`s are unaffected by this rewrite
+# because they live under a different kind name.
+# gazelle:map_kind ts_bundler_config bundler_config //tools:bundler.bzl
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_ts//ts"],
+)
+
+gazelle(
+    name = "gazelle",
+    gazelle = ":gazelle_bin",
+)
+
+ts_project(
+    name = "lib",
+    srcs = [
+        "app.ts",
+        "viteHelpers.ts",
+    ],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/lodash-es",
+        "//:node_modules/lodash-es",
+    ],
+)
+
+js_test(
+    name = "test",
+    data = [
+        "app.test.ts",
+        ":lib",
+        "//:node_modules/@types/lodash-es",
+        "//:node_modules/@types/node",
+        "//:node_modules/lodash-es",
+    ],
+    entry_point = "app.test.ts",
+)
+
+bundler_config(
+    name = "vite_config",
+    srcs = ["vite.config.ts"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lib",
+        "//:node_modules/@vitejs/plugin-react",
+        "//:node_modules/vite",
+    ],
+)
+
+bundler_config(
+    name = "vitest_config",
+    srcs = ["vitest.config.ts"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = ["//:node_modules/vitest"],
+)
+
+bundler_config(
+    name = "tailwind_config",
+    srcs = ["tailwind.config.ts"],
+    composite = True,
+    declaration = True,
+    declaration_map = True,
+    source_map = True,
+    tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
+    deps = ["//:node_modules/tailwindcss"],
+)

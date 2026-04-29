@@ -85,6 +85,19 @@ type tsConfig struct {
 	// auto-discovers tests — vitest_test, jest_test, mocha_test — where an
 	// emitted entry_point is meaningless or wrong.
 	testEntryPointAuto bool
+
+	// bundlerConfigSpecs lists the bundler/tooling config files held out of
+	// the library compilation unit, each with its own emitted target name.
+	// Each spec maps a glob pattern to the Bazel target name to emit; matched
+	// files are excluded from libSrcs/testSrcs and grouped under their spec.
+	bundlerConfigSpecs []bundlerConfigSpec
+}
+
+// bundlerConfigSpec is one entry of the ts_bundler_config_pattern directive:
+// a glob plus the target name to emit for files matching that glob.
+type bundlerConfigSpec struct {
+	Pattern string
+	Name    string
 }
 
 // newTsConfig returns a config populated with all defaults.
@@ -117,5 +130,6 @@ func (c *tsConfig) clone() *tsConfig {
 	for k, v := range c.generatedPackages {
 		cp.generatedPackages[k] = v
 	}
+	cp.bundlerConfigSpecs = append([]bundlerConfigSpec(nil), c.bundlerConfigSpecs...)
 	return &cp
 }

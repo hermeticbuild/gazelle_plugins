@@ -1,0 +1,32 @@
+module(
+    name = "bundler_config_example",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "gazelle", version = "0.50.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "aspect_rules_js", version = "3.0.3")
+bazel_dep(name = "aspect_rules_ts", version = "3.8.8")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "rules_nodejs", version = "6.7.4")
+
+bazel_dep(name = "gazelle_ts", version = "0.0.0")
+local_path_override(
+    module_name = "gazelle_ts",
+    path = "../..",
+)
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node.toolchain(node_version = "22.11.0")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm.npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "//:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "npm")
+
+rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext", dev_dependency = True)
+rules_ts_ext.deps()
+use_repo(rules_ts_ext, "npm_typescript")
