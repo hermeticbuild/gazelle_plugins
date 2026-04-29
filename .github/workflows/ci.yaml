@@ -13,6 +13,10 @@ concurrency:
 jobs:
   # Emits the platform matrix once. macOS is dropped on pull_request runs
   # (saves runner minutes) but stays for push to main and the merge queue.
+  # Linux runs inside gcr.io/bazel-public/debian11 — same image BCR uses,
+  # glibc 2.31. Catches glibc-version-specific link issues (e.g. -ldl
+  # required for cgo'd Rust staticlibs) that Ubuntu 22.04 / glibc 2.35
+  # silently masks.
   matrix:
     name: matrix
     runs-on: ubuntu-latest
@@ -24,15 +28,16 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = "pull_request" ]; then
-            echo 'platforms=[{"platform":"linux-x86_64","runner":"ubuntu-latest"}]' >> "$GITHUB_OUTPUT"
+            echo 'platforms=[{"platform":"linux-debian11","runner":"ubuntu-latest","container":"gcr.io/bazel-public/debian11"}]' >> "$GITHUB_OUTPUT"
           else
-            echo 'platforms=[{"platform":"linux-x86_64","runner":"ubuntu-latest"},{"platform":"macos-arm64","runner":"macos-latest"}]' >> "$GITHUB_OUTPUT"
+            echo 'platforms=[{"platform":"linux-debian11","runner":"ubuntu-latest","container":"gcr.io/bazel-public/debian11"},{"platform":"macos-arm64","runner":"macos-latest","container":""}]' >> "$GITHUB_OUTPUT"
           fi
 
   bazel-test:
     needs: matrix
     name: bazel ${{ matrix.bazel }} test (${{ matrix.os.platform }})
     runs-on: ${{ matrix.os.runner }}
+    container: ${{ matrix.os.container }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,9 +61,12 @@ jobs:
 
   # Examples are linux-only — they exercise the BUILD-generation path and
   # don't add platform-specific coverage worth the macOS runner cost.
+  # Same debian11 container as bazel-test so glibc-2.31 link issues
+  # surface here too (gazelle_ts is built as a tool inside each example).
   examples:
     name: example ${{ matrix.example }} (bazel ${{ matrix.bazel }})
     runs-on: ubuntu-latest
+    container: gcr.io/bazel-public/debian11
     strategy:
       fail-fast: false
       matrix:
