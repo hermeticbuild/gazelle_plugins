@@ -131,6 +131,58 @@ func TestClone_Independent(t *testing.T) {
 	}
 }
 
+func TestApplyDirective_BundlerConfigPattern(t *testing.T) {
+	cfg := newTsConfig()
+	applyDirective(cfg, rule.Directive{
+		Key:   directiveBundlerConfigPattern,
+		Value: "vite.config.* vite_config",
+	})
+	applyDirective(cfg, rule.Directive{
+		Key:   directiveBundlerConfigPattern,
+		Value: "vitest.config.* vitest_config",
+	})
+
+	want := []bundlerConfigSpec{
+		{Pattern: "vite.config.*", Name: "vite_config"},
+		{Pattern: "vitest.config.*", Name: "vitest_config"},
+	}
+	if !reflect.DeepEqual(cfg.bundlerConfigSpecs, want) {
+		t.Errorf("bundlerConfigSpecs = %v, want %v", cfg.bundlerConfigSpecs, want)
+	}
+
+	// Re-applying the same value should not duplicate.
+	applyDirective(cfg, rule.Directive{
+		Key:   directiveBundlerConfigPattern,
+		Value: "vite.config.* vite_config",
+	})
+	if len(cfg.bundlerConfigSpecs) != 2 {
+		t.Errorf("duplicate spec accepted: %v", cfg.bundlerConfigSpecs)
+	}
+
+	// Malformed (single field, missing name) silently ignored.
+	applyDirective(cfg, rule.Directive{
+		Key:   directiveBundlerConfigPattern,
+		Value: "vite.config.*",
+	})
+	if len(cfg.bundlerConfigSpecs) != 2 {
+		t.Errorf("malformed spec accepted: %v", cfg.bundlerConfigSpecs)
+	}
+}
+
+func TestClone_BundlerConfigSpecs(t *testing.T) {
+	parent := newTsConfig()
+	parent.bundlerConfigSpecs = []bundlerConfigSpec{
+		{Pattern: "vite.config.*", Name: "vite_config"},
+	}
+	child := parent.clone()
+	child.bundlerConfigSpecs = append(child.bundlerConfigSpecs, bundlerConfigSpec{
+		Pattern: "tailwind.config.ts", Name: "tailwind_config",
+	})
+	if len(parent.bundlerConfigSpecs) != 1 {
+		t.Errorf("parent mutated by child: %v", parent.bundlerConfigSpecs)
+	}
+}
+
 func contains(slice []string, val string) bool {
 	for _, s := range slice {
 		if s == val {

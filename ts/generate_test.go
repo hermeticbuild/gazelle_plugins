@@ -144,14 +144,102 @@ func TestCollectSrcs(t *testing.T) {
 		"README.md",
 		"package.json",
 	}
-	libs, tests := collectSrcs(files, cfg)
+	parts := collectSrcs(files, cfg)
 
 	wantLibs := []string{"helper.ts", "main.ts", "types.tsx"}
 	wantTests := []string{"main.test.ts", "tests/integration.ts"}
-	if !reflect.DeepEqual(libs, wantLibs) {
-		t.Errorf("libs = %v, want %v", libs, wantLibs)
+	if !reflect.DeepEqual(parts.lib, wantLibs) {
+		t.Errorf("libs = %v, want %v", parts.lib, wantLibs)
 	}
-	if !reflect.DeepEqual(tests, wantTests) {
-		t.Errorf("tests = %v, want %v", tests, wantTests)
+	if !reflect.DeepEqual(parts.test, wantTests) {
+		t.Errorf("tests = %v, want %v", parts.test, wantTests)
+	}
+	if len(parts.bundlerConfigs) != 0 {
+		t.Errorf("bundlerConfigs = %v, want empty", parts.bundlerConfigs)
+	}
+}
+
+func TestCollectSrcs_BundlerConfigSplit(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.bundlerConfigSpecs = []bundlerConfigSpec{
+		{Pattern: "vite.config.*", Name: "vite_config"},
+		{Pattern: "vitest.config.*", Name: "vitest_config"},
+	}
+	files := []string{
+		"index.ts",
+		"vite.config.ts",
+		"vitest.config.ts",
+		"index.test.ts",
+		"helper.ts",
+	}
+	parts := collectSrcs(files, cfg)
+
+	wantLibs := []string{"helper.ts", "index.ts"}
+	if !reflect.DeepEqual(parts.lib, wantLibs) {
+		t.Errorf("lib = %v, want %v", parts.lib, wantLibs)
+	}
+	wantTests := []string{"index.test.ts"}
+	if !reflect.DeepEqual(parts.test, wantTests) {
+		t.Errorf("test = %v, want %v", parts.test, wantTests)
+	}
+	if got := parts.bundlerConfigs[0]; !reflect.DeepEqual(got, []string{"vite.config.ts"}) {
+		t.Errorf("vite bucket = %v, want [vite.config.ts]", got)
+	}
+	if got := parts.bundlerConfigs[1]; !reflect.DeepEqual(got, []string{"vitest.config.ts"}) {
+		t.Errorf("vitest bucket = %v, want [vitest.config.ts]", got)
+	}
+}
+
+func TestMatchBundlerConfigSpec_LongestPatternWins(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.bundlerConfigSpecs = []bundlerConfigSpec{
+		// Order is intentional — the more-specific pattern is declared after
+		// the broader one, and longest-pattern-wins must override declaration
+		// order.
+		{Pattern: "vite.config.*", Name: "vite_config"},
+		{Pattern: "vite.config.production.ts", Name: "vite_prod_config"},
+	}
+	idx, ok := matchBundlerConfigSpec("vite.config.production.ts", cfg)
+	if !ok || idx != 1 {
+		t.Errorf("longest-pattern-wins failed: idx=%d ok=%v", idx, ok)
+	}
+	idx, ok = matchBundlerConfigSpec("vite.config.ts", cfg)
+	if !ok || idx != 0 {
+		t.Errorf("broader pattern should match: idx=%d ok=%v", idx, ok)
+	}
+	if _, ok := matchBundlerConfigSpec("nope.ts", cfg); ok {
+		t.Errorf("non-matching file matched")
+	}
+}
+
+func TestCollectSrcs_BundlerOverridesTest(t *testing.T) {
+	// A file matching both a test pattern and a bundler-config pattern goes
+	// to the bundler-config bucket — the boundary the directive enforces is
+	// stronger than the test split.
+	cfg := newTsConfig()
+	cfg.testPatterns = append(cfg.testPatterns, "*.config.ts")
+	cfg.bundlerConfigSpecs = []bundlerConfigSpec{
+		{Pattern: "vite.config.ts", Name: "vite_config"},
+	}
+	parts := collectSrcs([]string{"vite.config.ts", "index.ts"}, cfg)
+
+	if len(parts.test) != 0 {
+		t.Errorf("test bucket should be empty, got %v", parts.test)
+	}
+	if got := parts.bundlerConfigs[0]; !reflect.DeepEqual(got, []string{"vite.config.ts"}) {
+		t.Errorf("bundler bucket = %v, want [vite.config.ts]", got)
+	}
+}
+
+func TestMatchBundlerConfigSpec_DoubleStar(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.bundlerConfigSpecs = []bundlerConfigSpec{
+		{Pattern: "**/main.ts", Name: "storybook_config"},
+	}
+	if _, ok := matchBundlerConfigSpec(".storybook/main.ts", cfg); !ok {
+		t.Errorf("**/main.ts should match .storybook/main.ts")
+	}
+	if _, ok := matchBundlerConfigSpec("src/main.ts", cfg); !ok {
+		t.Errorf("**/main.ts should match src/main.ts")
 	}
 }
