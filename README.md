@@ -35,6 +35,34 @@ bazel_dep(name = "gazelle", version = "0.50.0")
 bazel_dep(name = "gazelle_ts", version = "<latest>")
 ```
 
+> [!NOTE]
+> `gazelle_ts` registers a hermetic `@llvm` cc toolchain (so the rules_rs Rust toolchain doesn't trip Bazel's Xcode autodetect on macOS). To use it from a consumer workspace you have to mirror the flags below in your own `.bazelrc` — Bazel only reads the consumer's rc, not a dep's:
+>
+> ```
+> common --enable_platform_specific_config
+>
+> # Linux/Windows: pin host_platform so rules_rs's Rust toolchains match the
+> # gnu.2.28 libc / msvc constraints they tag via target_compatible_with.
+> common:linux --host_platform=@gazelle_ts//platforms:local_gnu
+> common:windows --host_platform=@gazelle_ts//platforms:local_windows_msvc
+>
+> # Suppress Bazel's autodetected cc toolchain so @llvm wins resolution
+> # cleanly. NO_APPLE specifically avoids the XcodeLocalEnvProvider
+> # duplicate-SDKROOT crash on macOS.
+> common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+> common --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
+>
+> # rust stdlib's link spec hardcodes -lgcc_s; @llvm's clang doesn't
+> # ship it, so we inject an empty stub.
+> common --@llvm//config:experimental_stub_libgcc_s=True
+>
+> # rules_go cgo external link via clang+lld can't produce PIE. Drop
+> # when Go 1.27 (Aug 2026) lands PIE-compatible objects.
+> build:linux --linkopt=-no-pie
+> ```
+>
+> See [`examples/basic/.bazelrc`](examples/basic/.bazelrc) for a working setup.
+
 ```python
 # BUILD.bazel
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
