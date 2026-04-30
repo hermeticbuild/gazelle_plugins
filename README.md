@@ -33,6 +33,10 @@ Add the module and compose your own `gazelle_binary`:
 # MODULE.bazel
 bazel_dep(name = "gazelle", version = "0.50.0")
 bazel_dep(name = "gazelle_ts", version = "<latest>")
+
+# Required so the consumer .bazelrc below can reference @llvm directly —
+# bzlmod doesn't transitively expose deps' repos.
+bazel_dep(name = "llvm", version = "0.7.6")
 ```
 
 > [!NOTE]
