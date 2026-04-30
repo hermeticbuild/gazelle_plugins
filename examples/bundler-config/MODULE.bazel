@@ -10,6 +10,11 @@ bazel_dep(name = "aspect_rules_ts", version = "3.8.8")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_nodejs", version = "6.7.4")
 
+# @llvm is visible only because we declare it directly: needed to reference
+# `@llvm//config:experimental_stub_libgcc_s` in .bazelrc. Bzlmod doesn't
+# transitively expose deps' repos to consumers.
+bazel_dep(name = "llvm", version = "0.7.6")
+
 bazel_dep(name = "gazelle_ts", version = "0.0.0")
 local_path_override(
     module_name = "gazelle_ts",
