@@ -1,5 +1,5 @@
 syntax = "proto3";
-package import_extractor;
+package gazelle_ts.import_extractor;
 
 message Request {
   uint32 id = 1;
