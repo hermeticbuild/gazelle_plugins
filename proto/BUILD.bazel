@@ -7,6 +7,10 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 proto_library(
     name = "import_extractor_proto",
     srcs = ["message.proto"],
+    # Disambiguate the FileDescriptor path so consumers linking gazelle_ts
+    # alongside another import-extractor plugin (e.g. gazelle_py) don't trip
+    # Go protobuf's duplicate-file-registration panic at startup.
+    import_prefix = "gazelle_ts",
     strip_import_prefix = "/proto",
     visibility = ["//visibility:public"],
 )
