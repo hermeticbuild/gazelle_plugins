@@ -1,5 +1,5 @@
 use crate::ts;
-use import_extractor_proto::import_extractor as pb;
+use import_extractor_proto::gazelle_ts::import_extractor as pb;
 use prost::Message;
 use rayon::prelude::*;
 
