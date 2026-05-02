@@ -1,3 +1,4 @@
+load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 # defs.bzl is the public Starlark surface — consumers' generated BUILD files
@@ -79,4 +80,28 @@ go_test(
     deps = [
         "@gazelle//rule",
     ],
+)
+
+# Gazelle binary linked against this package's language plugin. Used only by
+# the generation test below — consumers compose their own gazelle_binary
+# referencing `//ts` as a language.
+gazelle_binary(
+    name = "gazelle_test_binary",
+    languages = [":ts"],
+    visibility = ["//visibility:private"],
+)
+
+# Golden tests against //ts/testdata/<example>/. Each subdirectory containing
+# a MODULE.bazel is run as a Go subtest: gazelle generates BUILDs from the
+# BUILD.in seeds and the framework diffs against BUILD.out. The testdata is
+# a snapshot of //examples/<name>/, so a plugin change that alters generation
+# fails this test before it lands in any consumer workspace.
+#
+# To refresh after an intentional change, run:
+#     UPDATE_SNAPSHOTS=true bazel run //ts:gazelle_generation_test
+gazelle_generation_test(
+    name = "gazelle_generation_test",
+    gazelle_binary = ":gazelle_test_binary",
+    gazelle_timeout_seconds = 60,
+    test_data = glob(["testdata/**"]),
 )

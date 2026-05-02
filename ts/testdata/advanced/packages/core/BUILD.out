@@ -1,0 +1,8 @@
+load("//tools:ts.bzl", "myorg_ts_library")
+
+myorg_ts_library(
+    name = "core",
+    srcs = ["index.ts"],
+    visibility = ["//visibility:public"],
+    deps = ["//:node_modules/@types/node"],
+)

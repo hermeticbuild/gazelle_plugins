@@ -1,0 +1,30 @@
+load("//tools:ts.bzl", "myorg_ts_library", "vitest_test")
+
+myorg_ts_library(
+    name = "web",
+    srcs = ["index.ts"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@tanstack/react-query",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+        "//packages/core",
+        "//packages/utils/math/deep",
+        "//packages/utils/string",
+    ],
+)
+
+vitest_test(
+    name = "web_test",
+    data = [
+        "app.test.ts",
+        ":web",
+        "//:node_modules/@tanstack/react-query",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+        "//:node_modules/vitest",
+        "//packages/core",
+        "//packages/utils/math/deep",
+        "//packages/utils/string",
+    ],
+)

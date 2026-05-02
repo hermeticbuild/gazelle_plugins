@@ -1,0 +1,7 @@
+{
+  "name": "scoped_npm_with_types",
+  "dependencies": {
+    "@reduxjs/toolkit": "2.0.0",
+    "@types/reduxjs__toolkit": "2.0.0"
+  }
+}

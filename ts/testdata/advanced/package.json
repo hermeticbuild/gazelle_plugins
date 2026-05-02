@@ -1,0 +1,23 @@
+{
+  "name": "monorepo-example",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "imports": {
+    "#packages/*": "./packages/*"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.5",
+    "lodash": "^4.17.0",
+    "react": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "vitest": "^3.2.4"
+  }
+}

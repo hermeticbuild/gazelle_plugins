@@ -1,0 +1,1 @@
+# gazelle:ts_test_pattern *.spec.ts

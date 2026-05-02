@@ -1,0 +1,21 @@
+# Operations consumed by `apps/web`. The schema lives somewhere else (a real
+# repo would point graphql-codegen at the live schema URL or a fed SDL); this
+# file just declares the queries we care about. The `genrule` in the same
+# directory turns these into a Bazel-built npm package at
+# `@myrepo_generated/queries`.
+
+query GetUser($id: ID!) {
+  user(id: $id) {
+    id
+    email
+    name
+  }
+}
+
+query ListUsers($limit: Int) {
+  users(limit: $limit) {
+    id
+    email
+    name
+  }
+}

@@ -1,0 +1,9 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+# gazelle:ts_library_name my_custom_lib
+
+ts_library(
+    name = "my_custom_lib",
+    srcs = ["app.ts"],
+    visibility = ["//visibility:public"],
+)

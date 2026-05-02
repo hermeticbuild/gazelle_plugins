@@ -1,0 +1,9 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+# gazelle:ts_extension .mts
+
+ts_library(
+    name = "lib",
+    srcs = ["app.mts"],
+    visibility = ["//visibility:public"],
+)

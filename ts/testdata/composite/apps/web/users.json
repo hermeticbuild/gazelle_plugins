@@ -1,0 +1,4 @@
+[
+  { "id": "1", "email": "alice@example.com", "registered": "2025-01-15T00:00:00Z" },
+  { "id": "2", "email": "bob@example.com", "registered": "2025-02-20T00:00:00Z" }
+]
