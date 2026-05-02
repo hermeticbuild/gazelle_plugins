@@ -1,0 +1,12 @@
+load("//tools:ts.bzl", "myorg_ts_library")
+
+myorg_ts_library(
+    name = "deep",
+    srcs = ["stats.ts"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/lodash",
+        "//:node_modules/lodash",
+        "//packages/core",
+    ],
+)

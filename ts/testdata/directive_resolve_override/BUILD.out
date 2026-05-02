@@ -1,0 +1,10 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+# gazelle:resolve ts ts mystery-pkg //tools:mystery
+
+ts_library(
+    name = "lib",
+    srcs = ["app.ts"],
+    visibility = ["//visibility:public"],
+    deps = ["//tools:mystery"],
+)

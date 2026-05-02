@@ -1,0 +1,53 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+# Generate //:node_modules/<pkg> targets from pnpm-lock.yaml.
+npm_link_all_packages(name = "node_modules")
+
+# Bazel-generated npm package — links into //:node_modules/@myrepo_generated/synthetic
+# alongside the pnpm-managed ones. The plugin's `ts_generated_package`
+# directive points at this label so imports resolve.
+npm_link_package(
+    name = "node_modules/@myrepo_generated/synthetic",
+    src = "//packages/synthetic:pkg",
+    package = "@myrepo_generated/synthetic",
+    visibility = ["//visibility:public"],
+)
+
+# Shared tsconfig — referenced by every ts_project via `ts_tsconfig`.
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# Default npm linker layout matches what rules_js produces by convention.
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+
+# Synthetic Bazel-generated package — not in package.json, so the resolver
+# would otherwise drop it. The directive points the prefix at a literal
+# Bazel label so imports like `@myrepo_generated/synthetic` resolve correctly.
+# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+
+# Native gazelle directive — route a virtual import string to a Bazel label.
+# gazelle:resolve ts ts mystery:banner //tools:mystery
+
+# Wire the abstract kinds the plugin emits to project wrappers in
+# //tools:ts.bzl. The wrappers bake in tsconfig, project-references compile
+# flags, and the vitest runner — all decisions the plugin deliberately
+# leaves to the consumer.
+# gazelle:map_kind ts_library myorg_ts_library //tools:ts.bzl
+# gazelle:map_kind ts_test    vitest_test      //tools:ts.bzl
+# gazelle:map_kind ts_binary  myorg_ts_binary  //tools:ts.bzl
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_ts//ts"],
+)
+
+gazelle(
+    name = "gazelle",
+    gazelle = ":gazelle_bin",
+)

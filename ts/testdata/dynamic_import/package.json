@@ -1,0 +1,6 @@
+{
+  "name": "dynamic_import",
+  "dependencies": {
+    "lodash": "4.0.0"
+  }
+}

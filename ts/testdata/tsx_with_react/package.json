@@ -1,0 +1,7 @@
+{
+  "name": "tsx_with_react",
+  "dependencies": {
+    "react": "18.0.0",
+    "@types/react": "18.0.0"
+  }
+}

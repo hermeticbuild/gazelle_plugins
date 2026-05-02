@@ -1,0 +1,7 @@
+{
+  "name": "type_only_import",
+  "dependencies": {
+    "lodash": "4.0.0",
+    "@types/lodash": "4.0.0"
+  }
+}

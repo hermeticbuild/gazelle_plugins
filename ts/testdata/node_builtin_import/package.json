@@ -1,0 +1,6 @@
+{
+  "name": "node_builtin_import",
+  "dependencies": {
+    "@types/node": "20.0.0"
+  }
+}

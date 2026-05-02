@@ -1,0 +1,25 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+npm_link_all_packages(name = "node_modules")
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
+# gazelle:map_kind ts_library ts_library //tools:ts.bzl
+# gazelle:map_kind ts_test ts_test //tools:ts.bzl
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = ["@gazelle_ts//ts"],
+)
+
+gazelle(
+    name = "gazelle",
+    gazelle = ":gazelle_bin",
+)
