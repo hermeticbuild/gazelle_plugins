@@ -11,25 +11,25 @@ Parsing TypeScript correctly enough to drive `BUILD.bazel` generation is signifi
 Two functions, declared in `src/ffi.rs`:
 
 ```c
-void ie_dispatch(
+void gazelle_ts_ie_dispatch(
     const uint8_t *req_ptr,
     size_t req_len,
     uint8_t **out_resp_ptr,
     size_t *out_resp_len);
 
-void ie_free(uint8_t *ptr, size_t len);
+void gazelle_ts_ie_free(uint8_t *ptr, size_t len);
 ```
 
-`ie_dispatch` decodes a protobuf `Request`, parses the requested files in parallel, encodes a `Response`, and hands ownership of the buffer back via the out-parameters. The caller releases it with `ie_free`. The encoding is the same protobuf schema in [`proto/message.proto`](../../proto/message.proto) — it just runs in-process now.
+`gazelle_ts_ie_dispatch` decodes a protobuf `Request`, parses the requested files in parallel, encodes a `Response`, and hands ownership of the buffer back via the out-parameters. The caller releases it with `gazelle_ts_ie_free`. The encoding is the same protobuf schema in [`proto/message.proto`](../../proto/message.proto) — it just runs in-process now.
 
 ```mermaid
 sequenceDiagram
     participant G as Gazelle (Go, cgo)
     participant E as import_extractor (Rust, linked in)
-    G->>E: ie_dispatch(Request bytes)
+    G->>E: gazelle_ts_ie_dispatch(Request bytes)
     E->>E: rayon::par_iter parses files
     E-->>G: Response bytes (caller owns)
-    G->>E: ie_free(bytes)
+    G->>E: gazelle_ts_ie_free(bytes)
 ```
 
 ## Layout
@@ -39,7 +39,7 @@ proto/
 └── message.proto       # wire-protocol schema (built via rust_prost_library)
 src/
 ├── lib.rs              # re-exports ffi, ts, wire modules
-├── ffi.rs              # C ABI surface (ie_dispatch / ie_free)
+├── ffi.rs              # C ABI surface (gazelle_ts_ie_dispatch / gazelle_ts_ie_free)
 ├── wire.rs             # protobuf request/response dispatcher
 └── ts.rs               # oxc-based TypeScript import extractor
 ```
@@ -48,7 +48,7 @@ src/
 
 ```
 bazel build //crates/import_extractor:import_extractor_static
-bazel test  //crates/import_extractor:test
+bazel test  //crates/import_extractor:all
 ```
 
 The `import_extractor_static` target produces a `.a` with `CcInfo`, which `//ts:ts` consumes via `cdeps` on its `go_library`.

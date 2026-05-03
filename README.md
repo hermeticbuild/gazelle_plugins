@@ -29,7 +29,7 @@ examples/                     # self-contained Bazel workspaces:
 ## What this repo gives you
 
 - **`ts`**: a Gazelle TypeScript language extension. It generates and maintains `BUILD.bazel` files for TypeScript packages, emits abstract `ts_library`, `ts_test`, `ts_binary`, and `ts_bundler_config` kinds, and lets consumers map those kinds to project-specific macros with `# gazelle:map_kind`. It reads `package.json` `imports` for subpath resolution. Consume it by composing your own `gazelle_binary(languages = ["@gazelle_ts//ts"])`.
-- **`crates/import_extractor`**: a Rust staticlib that parses TypeScript imports via `oxc`. It exposes a small C ABI (`ie_dispatch` / `ie_free`); the gazelle plugin links it through cgo and dispatches in-process. See [crates/import_extractor/README.md](crates/import_extractor/README.md).
+- **`crates/import_extractor`**: a Rust staticlib that parses TypeScript imports via `oxc`. It exposes a plugin-namespaced C ABI (`gazelle_ts_ie_dispatch` / `gazelle_ts_ie_free`); the gazelle plugin links it through cgo and dispatches in-process. See [crates/import_extractor/README.md](crates/import_extractor/README.md).
 - **`examples/`**: escalating example workspaces, each with its own `MODULE.bazel`, `pnpm-lock.yaml`, and `tsconfig.json`. They `local_path_override` the parent module so plugin changes apply on the next `bazel run //:gazelle`. See [examples/README.md](examples/README.md).
 
 ## Consumer Setup
