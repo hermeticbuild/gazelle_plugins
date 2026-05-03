@@ -1,7 +1,7 @@
 diff --git a/rust/private/rust.bzl b/rust/private/rust.bzl
 --- a/rust/private/rust.bzl
 +++ b/rust/private/rust.bzl
-@@ -1118,9 +1118,40 @@
+@@ -1118,9 +1118,46 @@
      ],
  )
  
@@ -28,6 +28,12 @@ diff --git a/rust/private/rust.bzl b/rust/private/rust.bzl
 +        cfg = "exec",
 +        allow_files = True,
 +    ),
++    "_llvm_ld64_lld": attr.label(
++        default = Label("@llvm//tools:ld64.lld"),
++        executable = True,
++        cfg = "exec",
++        allow_files = True,
++    ),
 +    "_llvm_objcopy": attr.label(
 +        default = Label("@llvm//tools:llvm-objcopy"),
 +        executable = True,
@@ -46,7 +52,7 @@ diff --git a/rust/private/rust.bzl b/rust/private/rust.bzl
 diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl
-@@ -1748,6 +1748,96 @@
+@@ -1748,6 +1748,106 @@
  
          outputs = [crate_info.output]
  
@@ -77,15 +83,25 @@ diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 +                    for symbol in exported_symbols
 +                ]) + "\n",
 +            )
-+            ctx.actions.run_shell(
++            ctx.actions.run(
++                executable = ctx.executable._llvm_ld64_lld,
 +                inputs = [crate_info.output, mac_exports],
 +                outputs = [localized_staticlib_obj],
 +                arguments = [
++                    "-r",
++                    "-arch",
++                    "arm64",
++                    "-platform_version",
++                    "macos",
++                    "11.0",
++                    "11.0",
++                    "-all_load",
 +                    crate_info.output.path,
++                    "-exported_symbols_list",
 +                    mac_exports.path,
++                    "-o",
 +                    localized_staticlib_obj.path,
 +                ],
-+                command = "/usr/bin/ld -r -arch arm64 -platform_version macos 11.0 11.0 -all_load \"$1\" -exported_symbols_list \"$2\" -o \"$3\"",
 +                mnemonic = "RustStaticlibPartialLink",
 +                progress_message = "Partially linking Rust staticlib %{label}",
 +            )
@@ -143,7 +159,7 @@ diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
      coverage_runfiles = []
      if toolchain.coverage_supported and ctx.configuration.coverage_enabled and crate_info.is_test:
          coverage_runfiles = [toolchain.llvm_cov, toolchain.llvm_profdata] + toolchain.llvm_lib
-@@ -1830,6 +1920,10 @@
+@@ -1830,6 +1930,10 @@
          crate_info_dict.update({
              "rustc_env": env_from_args,
          })
