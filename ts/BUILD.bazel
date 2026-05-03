@@ -33,19 +33,18 @@ go_library(
         "resolve.go",
     ],
     cgo = True,
-    # Rust import_extractor staticlib linked via cgo. The wrapper in
-    # //crates/import_extractor pins compilation_mode=opt and the release
-    # rustc flags via with_cfg, so consumers get an optimized binary even
-    # when their own bazel invocation runs in fastbuild.
-    cdeps = ["//crates/import_extractor:import_extractor_static"],
-    # Rust std uses dlsym (sys/pal/unix/weak/dlsym.rs). On glibc < 2.34
-    # (e.g. Debian 11) libdl is a separate object — without -ldl the cgo
-    # link fails with "undefined reference to 'dlsym'". On glibc ≥ 2.34
-    # (Ubuntu 22.04+) libdl is a stub that forwards to libc, so the flag
-    # is harmless. rules_rs's stdlib_linkflags select doesn't add -ldl
-    # for plain @platforms//os:linux.
+    # Link the Rust rlib via cgo so transitive Rust crates remain dedupable.
+    cdeps = ["//crates/import_extractor:import_extractor"],
+    # Rust std needs libunwind when linked through rlibs into a final cgo
+    # binary. Force-load it because the Rust stdlib archive can otherwise
+    # appear before the objects that reference _Unwind symbols.
     clinkopts = select({
-        "@platforms//os:linux": ["-ldl"],
+        "@platforms//os:linux": [
+            "-ldl",
+            "-Wl,--whole-archive",
+            "-lunwind",
+            "-Wl,--no-whole-archive",
+        ],
         "//conditions:default": [],
     }),
     importpath = "github.com/hermeticbuild/gazelle_ts/ts",
@@ -70,10 +69,14 @@ go_test(
         "generate_test.go",
         "resolve_test.go",
     ],
-    # Mirror the go_library's clinkopts — go_test re-links and the
-    # cgo'd Rust staticlib still needs dlsym on glibc < 2.34.
+    # Mirror the go_library's runtime linkopts; go_test relinks the cgo'd rlib.
     clinkopts = select({
-        "@platforms//os:linux": ["-ldl"],
+        "@platforms//os:linux": [
+            "-ldl",
+            "-Wl,--whole-archive",
+            "-lunwind",
+            "-Wl,--no-whole-archive",
+        ],
         "//conditions:default": [],
     }),
     embed = [":ts"],
