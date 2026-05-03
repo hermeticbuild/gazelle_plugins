@@ -16,6 +16,11 @@ bazel_dep(name = "with_cfg.bzl", version = "0.14.6")
 # rules_rs's Linux toolchains pin via target_compatible_with, applied to our
 # host platform at //platforms:local_gnu.
 bazel_dep(name = "llvm", version = "0.7.6")
+single_version_override(
+    module_name = "llvm",
+    patch_strip = 1,
+    patches = ["//third_party/llvm/patches:llvm_module_ld64_lld_r.patch"],
+)
 
 # Hermetic clang toolchain. Replaces Bazel's autodetected `@local_config_cc`
 # so APPLE_SDK_PLATFORM never reaches the action env on macOS, avoiding
