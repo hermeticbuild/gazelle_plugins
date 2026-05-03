@@ -32,12 +32,12 @@ go_library(
         "parser.go",
         "resolve.go",
     ],
-    cgo = True,
     # Rust import_extractor staticlib linked via cgo. The wrapper in
     # //crates/import_extractor pins compilation_mode=opt and the release
     # rustc flags via with_cfg, so consumers get an optimized binary even
     # when their own bazel invocation runs in fastbuild.
     cdeps = ["//crates/import_extractor:import_extractor_static"],
+    cgo = True,
     # Rust std uses dlsym (sys/pal/unix/weak/dlsym.rs). On glibc < 2.34
     # (e.g. Debian 11) libdl is a separate object — without -ldl the cgo
     # link fails with "undefined reference to 'dlsym'". On glibc ≥ 2.34
