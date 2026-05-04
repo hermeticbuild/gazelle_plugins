@@ -44,16 +44,16 @@ type tsLang struct {
 	packageDeps map[string]bool
 
 	// subpathImportsMap stores the "imports" field from the root package.json,
-	// e.g. `"#packages/*": "./packages/*"`. Augmented per-tree by
-	// # gazelle:ts_subpath_import directives in configure.go.
-	subpathImportsMap map[string]string
+	// e.g. `"#packages/*": ["./bazel-bin/packages/*", "./packages/*"]`.
+	// Values are ordered fallbacks.
+	subpathImportsMap map[string][]string
 }
 
 // NewLanguage creates a new TypeScript Gazelle language extension.
 func NewLanguage() language.Language {
 	return &tsLang{
 		packageDeps:       make(map[string]bool),
-		subpathImportsMap: make(map[string]string),
+		subpathImportsMap: make(map[string][]string),
 	}
 }
 
