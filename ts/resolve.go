@@ -294,17 +294,24 @@ func (l *tsLang) resolveSubpathTarget(target, capture string, from label.Label, 
 		if testPath == from.Pkg {
 			return "", false, true
 		}
-		// Use the actual rule label from the index — it carries the
-		// resolved rule name, which may not match the directory basename
-		// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
-		// //packages/foo).
-		if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath}, languageName); len(found) > 0 {
-			return found[0].Label.Rel(from.Repo, from.Pkg).String(), false, true
-		}
-		if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath + "/*"}, languageName); len(found) > 0 {
-			return found[0].Label.Rel(from.Repo, from.Pkg).String(), false, true
+		for _, imp := range []string{testPath, testPath + "/*"} {
+			found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: imp}, languageName)
+			sort.Slice(found, func(i, j int) bool {
+				return len(found[i].Label.Pkg) > len(found[j].Label.Pkg)
+			})
+			for _, candidate := range found {
+				if candidate.Label.Pkg == from.Pkg {
+					continue
+				}
+				// Use the actual rule label from the index — it carries the
+				// resolved rule name, which may not match the directory basename
+				// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
+				// //packages/foo).
+				return candidate.Label.Rel(from.Repo, from.Pkg).String(), false, true
+			}
 		}
 	}
+
 	return "", false, false
 }
 
