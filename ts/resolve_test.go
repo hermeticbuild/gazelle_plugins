@@ -9,6 +9,7 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazelbuild/bazel-gazelle/repo"
 	gazelleresolve "github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -171,6 +172,113 @@ func TestResolveSubpathImport_PathTargetUsesRuleIndex(t *testing.T) {
 	}
 }
 
+func TestResolveSubpathImport_LongestIndexedPackageWins(t *testing.T) {
+	lang := &tsLang{
+		packageDeps: map[string]bool{},
+		subpathImportsMap: map[string][]string{
+			"#apps/*": {"./apps/*"},
+		},
+	}
+	importsByName := map[string][]gazelleresolve.ImportSpec{
+		"web": {
+			{Lang: languageName, Imp: "apps/web/lib/auth/permissions"},
+		},
+		"auth": {
+			{Lang: languageName, Imp: "apps/web/lib/auth/permissions"},
+		},
+	}
+	resolver := staticImportResolver{importsByName: importsByName}
+	c := config.New()
+	ix := gazelleresolve.NewRuleIndex(func(r *rule.Rule, pkgRel string) gazelleresolve.Resolver {
+		return resolver
+	})
+	ix.AddRule(c, rule.NewRule("fake_ts_library", "web"), &rule.File{Pkg: "apps/web"})
+	ix.AddRule(c, rule.NewRule("fake_ts_library", "auth"), &rule.File{Pkg: "apps/web/lib/auth"})
+	ix.Finish()
+
+	got, external := lang.resolveSubpathImport(
+		"#apps/web/lib/auth/permissions.js",
+		label.Label{Pkg: "apps/web", Name: "web"},
+		ix,
+	)
+	if external {
+		t.Fatalf("external = true, want false")
+	}
+	if got != "//apps/web/lib/auth" {
+		t.Errorf("resolveSubpathImport = %q, want //apps/web/lib/auth", got)
+	}
+}
+
+func TestResolveSubpathImport_SuppressesSameRuleAlias(t *testing.T) {
+	lang := &tsLang{
+		packageDeps: map[string]bool{},
+		subpathImportsMap: map[string][]string{
+			"#repo/*": {"./*"},
+		},
+	}
+	importsByName := map[string][]gazelleresolve.ImportSpec{
+		"widgets": {
+			{Lang: languageName, Imp: "path/widgets/shader"},
+		},
+	}
+	resolver := staticImportResolver{importsByName: importsByName}
+	c := config.New()
+	ix := gazelleresolve.NewRuleIndex(func(r *rule.Rule, pkgRel string) gazelleresolve.Resolver {
+		return resolver
+	})
+	ix.AddRule(c, rule.NewRule("fake_ts_library", "widgets"), &rule.File{Pkg: "path/widgets"})
+	ix.Finish()
+
+	got, external := lang.resolveSubpathImport(
+		"#repo/path/widgets/shader.js",
+		label.Label{Pkg: "path/widgets", Name: "widgets"},
+		ix,
+	)
+	if external {
+		t.Fatalf("external = true, want false")
+	}
+	if got != "" {
+		t.Errorf("resolveSubpathImport = %q, want empty self-dep", got)
+	}
+}
+
+func TestResolveSubpathImport_DoesNotFallbackToParentForSameRuleAlias(t *testing.T) {
+	lang := &tsLang{
+		packageDeps: map[string]bool{},
+		subpathImportsMap: map[string][]string{
+			"#repo/*": {"./*"},
+		},
+	}
+	importsByName := map[string][]gazelleresolve.ImportSpec{
+		"parent": {
+			{Lang: languageName, Imp: "path/widgets/shaders/shader"},
+		},
+		"shaders": {
+			{Lang: languageName, Imp: "path/widgets/shaders/shader"},
+		},
+	}
+	resolver := staticImportResolver{importsByName: importsByName}
+	c := config.New()
+	ix := gazelleresolve.NewRuleIndex(func(r *rule.Rule, pkgRel string) gazelleresolve.Resolver {
+		return resolver
+	})
+	ix.AddRule(c, rule.NewRule("fake_ts_library", "parent"), &rule.File{Pkg: "path/widgets"})
+	ix.AddRule(c, rule.NewRule("fake_ts_library", "shaders"), &rule.File{Pkg: "path/widgets/shaders"})
+	ix.Finish()
+
+	got, external := lang.resolveSubpathImport(
+		"#repo/path/widgets/shaders/shader.js",
+		label.Label{Pkg: "path/widgets/shaders", Name: "shaders"},
+		ix,
+	)
+	if external {
+		t.Fatalf("external = true, want false")
+	}
+	if got != "" {
+		t.Errorf("resolveSubpathImport = %q, want empty same-rule import", got)
+	}
+}
+
 func TestResolveImportsToDeps_ExactOverridePrecedesPackageImports(t *testing.T) {
 	cfg := newTsConfig()
 	c := config.New()
@@ -301,6 +409,30 @@ func TestDeduplicateAndSort(t *testing.T) {
 
 func ruleDirective(key, value string) rule.Directive {
 	return rule.Directive{Key: key, Value: value}
+}
+
+type staticImportResolver struct {
+	importsByName map[string][]gazelleresolve.ImportSpec
+}
+
+func (r staticImportResolver) Name() string { return languageName }
+
+func (r staticImportResolver) Imports(c *config.Config, rl *rule.Rule, f *rule.File) []gazelleresolve.ImportSpec {
+	return r.importsByName[rl.Name()]
+}
+
+func (r staticImportResolver) Embeds(rl *rule.Rule, from label.Label) []label.Label {
+	return nil
+}
+
+func (r staticImportResolver) Resolve(
+	c *config.Config,
+	ix *gazelleresolve.RuleIndex,
+	rc *repo.RemoteCache,
+	rl *rule.Rule,
+	imports interface{},
+	from label.Label,
+) {
 }
 
 func TestNodeBuiltinsCovered(t *testing.T) {
