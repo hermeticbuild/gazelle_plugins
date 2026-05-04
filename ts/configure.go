@@ -74,7 +74,7 @@ func (l *tsLang) Configure(c *config.Config, rel string, f *rule.File) {
 		// Merge directive-supplied generated-package mappings on top of the
 		// package.json imports map. Directives win on key collisions.
 		for k, v := range cfg.generatedPackages {
-			l.subpathImportsMap[k] = v
+			l.subpathImportsMap[k] = []string{v}
 		}
 	}
 }

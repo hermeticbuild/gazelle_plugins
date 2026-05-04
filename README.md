@@ -143,6 +143,7 @@ The Rust parser handles every TypeScript import form; the resolver categorizes e
 | **Relative** | `./util`, `../shared/types` | _no dep added_; covered by the package's own srcs |
 | **Generated package** | `@myrepo_generated/foo` when configured via `ts_generated_package` | The configured Bazel label, with `*` substituted |
 | **Subpath import** | `#packages/foo/bar.ts` when `package.json` has `"#packages/*": "./packages/*"` | An internal `//packages/foo` label looked up via the RuleIndex |
+| **Generated subpath import** | `#generated/typespec/rest/users/index.js` when `package.json` maps `"#generated/typespec/rest/*/index.js"` | The generated package label looked up via the RuleIndex, e.g. `//typespec/rest/users:users.web` |
 | **Node.js builtin** | `fs`, `path`, `node:crypto` | `//:node_modules/@types/node`, configurable via `ts_npm_link_pattern` |
 | **Bare npm package** | `react`, `lodash` | `//:node_modules/react`, plus `//:node_modules/@types/react` if present |
 | **Scoped npm package** | `@mui/material`, `@tanstack/react-query` | `//:node_modules/@mui/material` |
@@ -159,10 +160,60 @@ A few cases are intentionally not resolved:
 - **TypeScript path mapping** from `tsconfig.json`'s `paths` field is not honored. Use `ts_generated_package` or rely on `package.json` `imports` instead; both are stricter than `paths` and play well with the Bazel sandbox.
 - **`require(...)` calls** are not parsed. The plugin is TypeScript-first; CommonJS in `.ts` files is rare in practice.
 
+### `package.json` `imports`
+
+`gazelle_ts` reads the root `package.json` `imports` map and uses it for TS dependency resolution. This is the preferred way to describe internal `#...` subpath imports because the same mapping is visible to Node.js, TypeScript's bundler resolution, and Gazelle.
+
+```json
+{
+  "imports": {
+    "#packages/*": "./packages/*",
+    "#generated/typespec/rest/*/index.js": "./typespec/rest/*",
+    "#generated/protobuf/*": [
+      "./bazel-bin/generated/protobuf/*",
+      "./generated/protobuf/*"
+    ]
+  }
+}
+```
+
+For path targets such as `./typespec/rest/*`, Gazelle substitutes the single `*` capture and asks its RuleIndex for the longest matching TS package. If `//typespec/rest/users` contains a generated or hand-written `ts_library(name = "users.web")`, then `import "#generated/typespec/rest/users/index.js"` resolves to `//typespec/rest/users:users.web`.
+
+Targets that start with `//` or `@` are treated as Bazel label templates instead:
+
+```json
+{
+  "imports": {
+    "#generated/npm/*/index.js": "//generated/npm/*:*.web"
+  }
+}
+```
+
+Gazelle resolves `imports` targets to a single dependency, matching Node's ordered resolution model rather than adding every possible environment target:
+
+1. Exact `gazelle:resolve ts ...` overrides win before `package.json` `imports`.
+2. Matching `imports` entries are checked by longest key first.
+3. A string target is used directly.
+4. An array target is treated as ordered fallback: Gazelle tries each entry and uses the first target that resolves to a valid Bazel label or RuleIndex package.
+5. A conditional object is evaluated in declaration order: Gazelle takes the first supported condition whose target resolves. Nested condition objects follow the same rule.
+6. A `null` target means no mapping for that branch.
+7. If no target resolves, Gazelle treats the import as unresolved and continues with the normal builtin/npm fallback logic.
+
+Supported target value shapes match Node's package target forms:
+
+| Value shape | Example | Gazelle behavior |
+|---|---|---|
+| String | `"#foo": "./foo/index.js"` | Resolve the string target. |
+| Array fallback | `"#foo": ["./bazel-bin/foo.js", "./foo.js"]` | Try each supported target in order. |
+| Conditional object | `"#foo": {"node": "./foo-node.js", "default": "./foo.js"}` | Evaluate supported conditions in declaration order; nested condition objects are supported. |
+| `null` | `"#foo/private/*": null` | Treat as no mapping. |
+
+The resolver recognizes the `types`, `node-addons`, `node`, `import`, `module-sync`, and `default` conditions. Other conditions are ignored unless a later supported condition provides a target.
+
 ### Recommendations
 
 - **Wire concrete macros via `# gazelle:map_kind`.** The plugin emits abstract kinds. Consumers wrap them in small macros that forward to their chosen implementation and set project-specific defaults. Without `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/data into a `filegroup` so the BUILD still loads, but nothing typechecks.
-- **Use `package.json` `imports` for internal cross-package references.** Configuring `"#packages/*": "./packages/*"` lets source, TypeScript, Node.js, bundlers, and Gazelle agree on resolution. The plugin reads the same map and resolves to internal Bazel labels.
+- **Use `package.json` `imports` for internal cross-package references and generated subpaths.** Configuring `"#packages/*": "./packages/*"` or `"#generated/foo/*/index.js": "./generated/foo/*"` lets source, TypeScript, Node.js, bundlers, and Gazelle agree on resolution. The plugin reads the same map and resolves to internal Bazel labels.
 - **In monorepos, set TypeScript project references in your wrapper macro.** Set `composite = True`, `declaration = True`, and `source_map = True` inside the macro behind `ts_library`; the wrapper runs once and applies to every emitted library.
 - **Pin one npm linker layout via `ts_npm_link_pattern`.** rules_js pnpm projects often use `//<dir>:node_modules/{pkg}`; the default `//:node_modules/{pkg}` is right for the simplest setup.
 - **Do not fight the merge engine.** Attrs the plugin sets are listed below. Attrs it does not set are preserved across runs, so manual overrides such as custom `transpiler`, extra `args`, or opt-in `declaration_dir` survive.
@@ -324,7 +375,8 @@ Gazelle never generates either kind. It piggybacks on the user's existing rule, 
 1. `package.json` is read once at the repo root for `dependencies`, `devDependencies`, `optionalDependencies`, and `imports`.
 2. Per import:
    - **Relative** (`./foo`, `../bar`): no dep added.
-   - **Generated package or subpath**: matches a key in the merged `package.json` `imports` and `ts_generated_package` map, resolving either to a literal Bazel label or to an internal repo label found via the RuleIndex.
+   - **Exact override**: `gazelle:resolve ts ...` wins over all TS-specific resolution.
+   - **Generated package or subpath**: matches a key in the merged `package.json` `imports` and `ts_generated_package` map. `*` may appear anywhere in the `imports` key and target, so patterns like `"#generated/foo/*/index.js": "./generated/foo/*"` resolve through the RuleIndex to the generated package's actual label. Array fallback targets are tried in order.
    - **Node.js builtin**: resolves to `@types/node`.
    - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced; auto-pairs `@types/<pkg>` if present in deps.
 3. Library rules collect resolved labels into `deps`. Test and bundler-config rules do the same into `data` / `deps`.

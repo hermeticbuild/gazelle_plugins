@@ -1,0 +1,15 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+# gazelle:ts_enabled false
+
+genrule(
+    name = "gen_index",
+    outs = ["index.js"],
+    cmd = "cat > $@ <<'EOF'\nexport const routeName = 'users';\nEOF\n",
+)
+
+ts_library(
+    name = "users.web",
+    srcs = [":gen_index"],
+    visibility = ["//visibility:public"],
+)

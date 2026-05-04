@@ -1,7 +1,9 @@
 package ts
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -29,10 +31,19 @@ var nodeBuiltinModules = map[string]bool{
 
 // packageJSON captures only the fields we read from the root package.json.
 type packageJSON struct {
-	Imports              map[string]string `json:"imports"`
-	Dependencies         map[string]string `json:"dependencies"`
-	DevDependencies      map[string]string `json:"devDependencies"`
-	OptionalDependencies map[string]string `json:"optionalDependencies"`
+	Imports              map[string]json.RawMessage `json:"imports"`
+	Dependencies         map[string]string          `json:"dependencies"`
+	DevDependencies      map[string]string          `json:"devDependencies"`
+	OptionalDependencies map[string]string          `json:"optionalDependencies"`
+}
+
+var packageImportConditions = map[string]bool{
+	"types":       true,
+	"node-addons": true,
+	"node":        true,
+	"import":      true,
+	"module-sync": true,
+	"default":     true,
 }
 
 // resolvedDeps holds the two categories we attach to a rule.
@@ -217,54 +228,84 @@ func (l *tsLang) resolveSubpathImport(importPath string, from label.Label, ix *r
 	sort.Slice(keys, func(i, j int) bool { return len(keys[i]) > len(keys[j]) })
 
 	for _, pattern := range keys {
-		target := l.subpathImportsMap[pattern]
-		prefix := strings.TrimSuffix(pattern, "*")
-		if !strings.HasPrefix(importPath, prefix) {
+		capture, ok := matchSubpathImportPattern(pattern, importPath)
+		if !ok {
 			continue
 		}
 
-		// If the target itself is already a Bazel label, use it directly
-		// (with the `*` substituted for the matched suffix). Literal labels
-		// are treated as external deps — typical use is wiring a synthetic
-		// npm-style package (npm_package, js_library) for things not in
-		// package.json.
-		if strings.HasPrefix(target, "//") || strings.HasPrefix(target, "@") {
-			suffix := strings.TrimPrefix(importPath, prefix)
-			out := strings.ReplaceAll(target, "*", suffix)
-			if strings.Contains(out, "*") {
-				out = strings.TrimSuffix(target, "*")
-			}
-			return out, true
-		}
-
-		// Otherwise treat target as a path within the repo and look up the
-		// matching ts_project in the rule index.
-		tp := strings.TrimSuffix(target, "*")
-		tp = strings.TrimPrefix(tp, "./")
-		resolvedPath := tp + strings.TrimPrefix(importPath, prefix)
-		for _, ext := range []string{".js", ".ts", ".tsx", ".jsx"} {
-			resolvedPath = strings.TrimSuffix(resolvedPath, ext)
-		}
-		parts := strings.Split(resolvedPath, "/")
-
-		for i := len(parts); i > 0; i-- {
-			testPath := strings.Join(parts[:i], "/")
-			if testPath == from.Pkg {
-				return "", false
-			}
-			// Use the actual rule label from the index — it carries the
-			// resolved rule name, which may not match the directory basename
-			// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
-			// //packages/foo).
-			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath}, languageName); len(found) > 0 {
-				return found[0].Label.Rel(from.Repo, from.Pkg).String(), false
-			}
-			if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath + "/*"}, languageName); len(found) > 0 {
-				return found[0].Label.Rel(from.Repo, from.Pkg).String(), false
+		for _, target := range l.subpathImportsMap[pattern] {
+			if dep, external, ok := l.resolveSubpathTarget(target, capture, from, ix); ok {
+				return dep, external
 			}
 		}
 	}
 	return "", false
+}
+
+func matchSubpathImportPattern(pattern, importPath string) (string, bool) {
+	if !strings.Contains(pattern, "*") {
+		return "", importPath == pattern
+	}
+
+	parts := strings.Split(pattern, "*")
+	if len(parts) != 2 {
+		return "", false
+	}
+	prefix, suffix := parts[0], parts[1]
+	if !strings.HasPrefix(importPath, prefix) || !strings.HasSuffix(importPath, suffix) {
+		return "", false
+	}
+	captureEnd := len(importPath) - len(suffix)
+	if captureEnd < len(prefix) {
+		return "", false
+	}
+	return importPath[len(prefix):captureEnd], true
+}
+
+func (l *tsLang) resolveSubpathTarget(target, capture string, from label.Label, ix *resolve.RuleIndex) (string, bool, bool) {
+	target = strings.ReplaceAll(target, "*", capture)
+
+	// If the target itself is already a Bazel label, use it directly
+	// (with the `*` substituted for the matched suffix). Literal labels
+	// are treated as external deps — typical use is wiring a synthetic
+	// npm-style package (npm_package, js_library) for things not in
+	// package.json.
+	if strings.HasPrefix(target, "//") || strings.HasPrefix(target, "@") {
+		dep, err := label.Parse(target)
+		if err != nil {
+			log.Fatalf("package.json imports target %q expanded to invalid label: %v", target, err)
+		}
+		return dep.Rel(from.Repo, from.Pkg).String(), true, true
+	}
+	if ix == nil {
+		return "", false, false
+	}
+
+	// Otherwise treat target as a path within the repo and look up the
+	// matching ts_project in the rule index.
+	resolvedPath := strings.TrimPrefix(target, "./")
+	for _, ext := range []string{".js", ".ts", ".tsx", ".jsx"} {
+		resolvedPath = strings.TrimSuffix(resolvedPath, ext)
+	}
+	parts := strings.Split(resolvedPath, "/")
+
+	for i := len(parts); i > 0; i-- {
+		testPath := strings.Join(parts[:i], "/")
+		if testPath == from.Pkg {
+			return "", false, true
+		}
+		// Use the actual rule label from the index — it carries the
+		// resolved rule name, which may not match the directory basename
+		// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
+		// //packages/foo).
+		if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath}, languageName); len(found) > 0 {
+			return found[0].Label.Rel(from.Repo, from.Pkg).String(), false, true
+		}
+		if found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: testPath + "/*"}, languageName); len(found) > 0 {
+			return found[0].Label.Rel(from.Repo, from.Pkg).String(), false, true
+		}
+	}
+	return "", false, false
 }
 
 // matchNpmPackage returns the package name (handling `@scope/name` correctly)
@@ -338,9 +379,91 @@ func (l *tsLang) loadPackageJSONDeps(repoRoot string) {
 	for dep := range pkg.OptionalDependencies {
 		l.packageDeps[dep] = true
 	}
-	for k, v := range pkg.Imports {
-		l.subpathImportsMap[k] = v
+	for k, raw := range pkg.Imports {
+		if targets := decodePackageImportTargets(raw); len(targets) > 0 {
+			l.subpathImportsMap[k] = targets
+		}
 	}
+}
+
+func decodePackageImportTargets(raw json.RawMessage) []string {
+	if string(bytes.TrimSpace(raw)) == "null" {
+		return nil
+	}
+
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	}
+
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		var out []string
+		for _, item := range arr {
+			out = append(out, decodePackageImportTargets(item)...)
+		}
+		return out
+	}
+
+	if entries, ok := decodeJSONObjectEntries(raw); ok {
+		for _, entry := range entries {
+			if !packageImportConditions[entry.key] {
+				continue
+			}
+			if targets := decodePackageImportTargets(entry.value); len(targets) > 0 {
+				return targets
+			}
+		}
+	}
+
+	return nil
+}
+
+type jsonObjectEntry struct {
+	key   string
+	value json.RawMessage
+}
+
+func decodeJSONObjectEntries(raw json.RawMessage) ([]jsonObjectEntry, bool) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, false
+	}
+	delim, ok := tok.(json.Delim)
+	if !ok || delim != '{' {
+		return nil, false
+	}
+
+	var entries []jsonObjectEntry
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, false
+		}
+		key, ok := tok.(string)
+		if !ok {
+			return nil, false
+		}
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, false
+		}
+		entries = append(entries, jsonObjectEntry{key: key, value: value})
+	}
+
+	tok, err = dec.Token()
+	if err != nil {
+		return nil, false
+	}
+	delim, ok = tok.(json.Delim)
+	if !ok || delim != '}' {
+		return nil, false
+	}
+	return entries, true
 }
 
 // deduplicateAndSort returns a sorted unique copy of items.
