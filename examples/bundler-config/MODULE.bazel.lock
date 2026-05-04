@@ -242,8 +242,8 @@
     "https://bcr.bazel.build/modules/rules_python/1.6.0/MODULE.bazel": "7e04ad8f8d5bea40451cf80b1bd8262552aa73f841415d20db96b7241bd027d8",
     "https://bcr.bazel.build/modules/rules_python/1.7.0/MODULE.bazel": "d01f995ecd137abf30238ad9ce97f8fc3ac57289c8b24bd0bf53324d937a14f8",
     "https://bcr.bazel.build/modules/rules_python/1.7.0/source.json": "028a084b65dcf8f4dc4f82f8778dbe65df133f234b316828a82e060d81bdce32",
-    "https://bcr.bazel.build/modules/rules_rs/0.0.72/MODULE.bazel": "22181edc55fa18da27de0035855868fbb4bc7646a757be925468b15e3354a9bb",
-    "https://bcr.bazel.build/modules/rules_rs/0.0.72/source.json": "293828b737ba655a3f529e3d5809dfb1beffed16ead69dd99001de118c4ea919",
+    "https://bcr.bazel.build/modules/rules_rs/0.0.73/MODULE.bazel": "34bb0919259bea1dec249480631484b18ffd0a65297cfb8ef2b1939460cf3544",
+    "https://bcr.bazel.build/modules/rules_rs/0.0.73/source.json": "f05f16b61bbcc5861827d4627638913cfb2634148435618ead5abd4198829fb2",
     "https://bcr.bazel.build/modules/rules_shell/0.2.0/MODULE.bazel": "fda8a652ab3c7d8fee214de05e7a9916d8b28082234e8d2c0094505c5268ed3c",
     "https://bcr.bazel.build/modules/rules_shell/0.3.0/MODULE.bazel": "de4402cd12f4cc8fda2354fce179fdb068c0b9ca1ec2d2b17b3e21b24c1a937b",
     "https://bcr.bazel.build/modules/rules_shell/0.4.1/MODULE.bazel": "00e501db01bbf4e3e1dd1595959092c2fadf2087b2852d3f553b5370f5633592",
@@ -309,7 +309,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "cl5A2O84vDL6Tt+Qga8FCj1DUDGqn+e7ly5rZ+4xvcc=",
-        "usagesDigest": "acUxOSJoYBeXEiq8V7yg3XUjEJbeNf+YYjkPyc5DwKs=",
+        "usagesDigest": "8xx76NxRdPxN7kI5gXChsPnSpakVOySXY8ycAyd2U58=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+"
@@ -321,7 +321,7 @@
               "deps": {
                 "aspect_rules_js": "3.0.3",
                 "aspect_rules_ts": "3.8.8",
-                "rules_rs": "0.0.72",
+                "rules_rs": "0.0.73",
                 "aspect_tools_telemetry": "0.3.3"
               }
             }
@@ -1401,6 +1401,9 @@
       "rust-std-1.95.0-i686-unknown-linux-gnu.tar.xz": "527c5d5249a7f77b48d3c9da3ac512d27b47f43d08dbe3c6f82a3d5b35d8aa27",
       "rust-std-1.95.0-i686-unknown-linux-musl.tar.xz": "af4d3e7aabb63d39a7a2ff5435cc993b65ff38a2d2e23f1967e519037a1b0455",
       "rust-std-1.95.0-i686-unknown-uefi.tar.xz": "3233985273616ec36861f2d50b4a025c903b2bb8c45b171c0ae9e2de8342125b",
+      "rust-std-1.95.0-loongarch64-unknown-linux-gnu.tar.xz": "eaf2c37c3293eea742e7ab20f25718ab19c93bd381df8823113fce70460c19c3",
+      "rust-std-1.95.0-loongarch64-unknown-linux-musl.tar.xz": "959b1bf99bc724c87bc4f2c0d184eb0554c134885c05c90d060eb572838924fd",
+      "rust-std-1.95.0-loongarch64-unknown-none.tar.xz": "139e8bdc86cbc21e149a2229c092f74741c907ef6424fa8ce8d435db47895cb6",
       "rust-std-1.95.0-powerpc-unknown-linux-gnu.tar.xz": "59e0abbaa246502521e37c55b8d6cf88d5b8a697b0c70c61ec189937308f7246",
       "rust-std-1.95.0-powerpc64-unknown-linux-gnu.tar.xz": "cc7fb9aa289ff1756502ae16a05e2885289165f01ed94a7c2db6576b3dae74a6",
       "rust-std-1.95.0-powerpc64le-unknown-linux-gnu.tar.xz": "2370d9266051a0b23346d42e43a00f91b2daff22a963fb03e28ae50cb0b76c50",
@@ -1410,6 +1413,7 @@
       "rust-std-1.95.0-riscv64gc-unknown-linux-musl.tar.xz": "e01bdbf5d6fa3e529671d49e87ba81dc9612101144f3ee5a0e1de3c48f27b47c",
       "rust-std-1.95.0-riscv64gc-unknown-none-elf.tar.xz": "a4cb7a1527f3b56a39464e5ca2b174a27b708b26d78e604735eb5ffd9ee4d20b",
       "rust-std-1.95.0-s390x-unknown-linux-gnu.tar.xz": "31978c1286afff9a0bb7f01c2ae4a39f40727b6100a82b6d934f146b06cde510",
+      "rust-std-1.95.0-sparc64-unknown-linux-gnu.tar.xz": "88619b2413d218c119a2060e583a9e835fa5f9cf6ac038070eec10b02c191056",
       "rust-std-1.95.0-thumbv6m-none-eabi.tar.xz": "602ec023c4615fc1c2d78b688554d42fa525e07e861c052f406fd7a607e5d5ee",
       "rust-std-1.95.0-thumbv7em-none-eabi.tar.xz": "fb671966ba9aede333956ed43fcfe114ec890ca6e70369c9f3219871ee3ae8ae",
       "rust-std-1.95.0-thumbv7em-none-eabihf.tar.xz": "fa3d189c09b64d818ad65a3fec1ce1c7d7b3908aea6fc4607a3fcc05067cad81",
