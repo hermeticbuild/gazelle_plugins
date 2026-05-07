@@ -15,8 +15,8 @@ flowchart LR
     GEN --> TSP["ts_project<br/>(composite=True)"]
     TSP --> NP["npm_package<br/>+ package.json"]
     NP --> LINK["npm_link_package<br/>//:node_modules/@myrepo_generated/queries"]
-    LINK -->|"# gazelle:ts_generated_package"| WEB["apps/web/UserCard.tsx"]
-    LINK -->|"# gazelle:ts_generated_package"| CORE["packages/core/format.ts"]
+    LINK -->|"# gazelle:resolve_regexp"| WEB["apps/web/UserCard.tsx"]
+    LINK -->|"# gazelle:resolve_regexp"| CORE["packages/core/format.ts"]
 ```
 
 Every step is in the build graph — change `queries.graphql`, gazelle's BUILD generation is unaffected, but `bazel build //...` re-runs codegen, retypechecks, repacks the npm output, and propagates the new types into every consumer.
@@ -52,7 +52,7 @@ npm_link_package(
     package = "@myrepo_generated/queries",
 )
 
-# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+# gazelle:resolve_regexp ts ^@myrepo_generated/(.*)$ //:node_modules/@myrepo_generated/$1
 ```
 
 The directive routes any `@myrepo_generated/*` import to the linker entry; gazelle emits it as a normal `deps` entry on every `ts_project` that imports the codegen output.

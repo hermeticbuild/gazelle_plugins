@@ -7,8 +7,8 @@ load("@npm//:defs.bzl", "npm_link_all_packages")
 npm_link_all_packages(name = "node_modules")
 
 # Bazel-generated npm package — links into //:node_modules/@myrepo_generated/synthetic
-# alongside the pnpm-managed ones. The plugin's `ts_generated_package`
-# directive points at this label so imports resolve.
+# alongside the pnpm-managed ones. The resolve_regexp directive points at
+# this label pattern so imports resolve.
 npm_link_package(
     name = "node_modules/@myrepo_generated/synthetic",
     src = "//packages/synthetic:pkg",
@@ -27,9 +27,9 @@ ts_config(
 # gazelle:ts_npm_link_pattern //:node_modules/{pkg}
 
 # Synthetic Bazel-generated package — not in package.json, so the resolver
-# would otherwise drop it. The directive points the prefix at a literal
-# Bazel label so imports like `@myrepo_generated/synthetic` resolve correctly.
-# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+# would otherwise drop it. The directive points the prefix at the linker
+# labels so imports like `@myrepo_generated/synthetic` resolve correctly.
+# gazelle:resolve_regexp ts ^@myrepo_generated/(.*)$ //:node_modules/@myrepo_generated/$1
 
 # Native gazelle directive — route a virtual import string to a Bazel label.
 # gazelle:resolve ts ts mystery:banner //tools:mystery

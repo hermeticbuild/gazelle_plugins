@@ -1,7 +1,7 @@
 // Top-level app: imports the codegen output AND a sibling internal package.
 // `@myrepo_generated/queries` is built by Bazel from schema/queries.graphql via
 // graphql-codegen; the gazelle plugin routes the import through the
-// `# gazelle:ts_generated_package @myrepo_generated/*=...` directive in
+// `# gazelle:resolve_regexp ts ^@myrepo_generated/(.*)$ ...` directive in
 // //BUILD.bazel.
 import React from 'react';
 import { FormattedDate } from 'react-intl';

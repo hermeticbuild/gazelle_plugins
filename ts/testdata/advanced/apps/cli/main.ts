@@ -1,5 +1,5 @@
 // CLI app: imports from a deeply nested package, a Node builtin, a
-// synthetic Bazel-generated package wired via `# gazelle:ts_generated_package`,
+// synthetic Bazel-generated package wired via `# gazelle:resolve_regexp`,
 // and a virtual module routed via `# gazelle:resolve` at the repo root.
 import { argv } from 'node:process';
 import { readFileSync } from 'node:fs';

@@ -55,12 +55,6 @@ type tsConfig struct {
 	// resolved package name.
 	npmLinkPattern string
 
-	// generatedPackages maps synthetic/generated package namespaces to Bazel
-	// labels. Pattern → target replacement (e.g.
-	// `@myrepo_generated/*` → `//:node_modules/@myrepo_generated/*`). Merged
-	// on top of the package.json `imports` map at the repo root.
-	generatedPackages map[string]string
-
 	// testData is added to every emitted test rule's `data` attr.
 	testData []string
 
@@ -81,14 +75,13 @@ type bundlerConfigSpec struct {
 // newTsConfig returns a config populated with all defaults.
 func newTsConfig() *tsConfig {
 	return &tsConfig{
-		enabled:           true,
-		libraryName:       defaultLibraryName,
-		testName:          defaultTestName,
-		visibility:        append([]string(nil), defaultVisibility...),
-		testPatterns:      append([]string(nil), defaultTestPatterns...),
-		extensions:        append([]string(nil), defaultExtensions...),
-		npmLinkPattern:    defaultNpmLinkPattern,
-		generatedPackages: make(map[string]string),
+		enabled:        true,
+		libraryName:    defaultLibraryName,
+		testName:       defaultTestName,
+		visibility:     append([]string(nil), defaultVisibility...),
+		testPatterns:   append([]string(nil), defaultTestPatterns...),
+		extensions:     append([]string(nil), defaultExtensions...),
+		npmLinkPattern: defaultNpmLinkPattern,
 	}
 }
 
@@ -100,10 +93,6 @@ func (c *tsConfig) clone() *tsConfig {
 	cp.testPatterns = append([]string(nil), c.testPatterns...)
 	cp.extensions = append([]string(nil), c.extensions...)
 	cp.testData = append([]string(nil), c.testData...)
-	cp.generatedPackages = make(map[string]string, len(c.generatedPackages))
-	for k, v := range c.generatedPackages {
-		cp.generatedPackages[k] = v
-	}
 	cp.bundlerConfigSpecs = append([]bundlerConfigSpec(nil), c.bundlerConfigSpecs...)
 	return &cp
 }
