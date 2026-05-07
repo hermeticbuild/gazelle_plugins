@@ -168,22 +168,22 @@ func (l *tsLang) resolveImportsToDeps(
 
 		// First consult gazelle's resolve directive overrides so callsites
 		// can route arbitrary imports with `# gazelle:resolve ts <import>
-		// <label>`. Note: gazelle's RuleIndex.FindRulesByImportWithConfig
-		// does NOT check overrides on its own (it only walks the rule
-		// index and CrossResolvers), so we have to call FindRuleWithOverride
-		// explicitly. Overrides win over every other resolution path.
+		// <label>` or `# gazelle:resolve_regexp ts <regexp> <label>`.
+		// Note: gazelle's RuleIndex.FindRulesByImportWithConfig does NOT
+		// check overrides on its own (it only walks the rule index and
+		// CrossResolvers), so we have to call FindRuleWithOverride explicitly.
+		// Overrides win over every other resolution path.
 		spec := resolve.ImportSpec{Lang: languageName, Imp: path}
 		if dep, ok := resolve.FindRuleWithOverride(c, spec, languageName); ok {
 			result.external = append(result.external, dep.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 
-		// Subpath / generated-package imports — anything matching a key in
-		// subpathImportsMap (sourced from package.json `imports` or
-		// ts_generated_package). Literal Bazel labels (start with `//` or
-		// `@`) go to `deps` because they're typically npm-style packages
-		// (npm_package, js_library, …); workspace-path targets resolve via
-		// the RuleIndex and go to `references` (TS project references).
+		// Subpath imports — anything matching a key in subpathImportsMap,
+		// sourced from package.json `imports`. Literal Bazel labels (start
+		// with `//` or `@`) go to `deps` because they're typically npm-style
+		// packages (npm_package, js_library, …); workspace-path targets resolve
+		// via the RuleIndex and go to `references` (TS project references).
 		if target, external := l.resolveSubpathImport(path, from, ix); target != "" {
 			if external {
 				result.external = append(result.external, target)

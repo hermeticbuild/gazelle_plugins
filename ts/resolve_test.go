@@ -310,6 +310,35 @@ func TestResolveImportsToDeps_ExactOverridePrecedesPackageImports(t *testing.T) 
 	}
 }
 
+func TestResolveImportsToDeps_RegexpOverride(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", &rule.File{
+		Directives: []rule.Directive{
+			ruleDirective("resolve_regexp", `ts ^@myrepo_generated/(.*)$ //:node_modules/@myrepo_generated/$1`),
+		},
+	})
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{},
+		subpathImportsMap: map[string][]string{},
+	}
+	got := lang.resolveImportsToDeps(
+		c,
+		[]ImportStatement{{ImportPath: "@myrepo_generated/synthetic"}},
+		label.Label{Pkg: "apps/cli", Name: "cli"},
+		nil,
+		cfg,
+	)
+	want := []string{"//:node_modules/@myrepo_generated/synthetic"}
+	if !reflect.DeepEqual(got.external, want) {
+		t.Errorf("external deps = %v, want %v", got.external, want)
+	}
+}
+
 func TestLoadPackageJSONDeps_ArrayFallbackImports(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(dir+"/package.json", []byte(`{

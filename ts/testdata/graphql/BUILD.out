@@ -27,7 +27,7 @@ ts_config(
 # Route imports of @myrepo_generated/* at the linker entries above. The
 # resolver wouldn't otherwise see `@myrepo_generated/queries` because it's
 # not in package.json.
-# gazelle:ts_generated_package @myrepo_generated/*=//:node_modules/@myrepo_generated/*
+# gazelle:resolve_regexp ts ^@myrepo_generated/(.*)$ //:node_modules/@myrepo_generated/$1
 
 gazelle_binary(
     name = "gazelle_bin",
