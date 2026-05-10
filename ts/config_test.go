@@ -51,6 +51,7 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	applyDirective(cfg, rule.Directive{Key: directiveTestPattern, Value: "*.spec.ts"})
 	applyDirective(cfg, rule.Directive{Key: directiveExtension, Value: ".mts"})
 	applyDirective(cfg, rule.Directive{Key: directiveTestData, Value: "//:fixtures"})
+	applyDirective(cfg, rule.Directive{Key: directiveTsconfigTypes, Value: "node react"})
 
 	if !contains(cfg.testPatterns, "*.spec.ts") {
 		t.Errorf("testPatterns missing *.spec.ts: %v", cfg.testPatterns)
@@ -61,9 +62,13 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	if !contains(cfg.testData, "//:fixtures") {
 		t.Errorf("testData missing //:fixtures: %v", cfg.testData)
 	}
+	if !reflect.DeepEqual(cfg.tsconfigTypes, []string{"node", "react"}) {
+		t.Errorf("tsconfigTypes = %v, want [node react]", cfg.tsconfigTypes)
+	}
 
 	// Re-applying the same value should not duplicate.
 	applyDirective(cfg, rule.Directive{Key: directiveTestPattern, Value: "*.spec.ts"})
+	applyDirective(cfg, rule.Directive{Key: directiveTsconfigTypes, Value: "node"})
 	count := 0
 	for _, p := range cfg.testPatterns {
 		if p == "*.spec.ts" {
@@ -73,22 +78,36 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	if count != 1 {
 		t.Errorf("expected 1 occurrence of *.spec.ts, got %d", count)
 	}
+	count = 0
+	for _, typ := range cfg.tsconfigTypes {
+		if typ == "node" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 1 occurrence of node, got %d", count)
+	}
 }
 
 func TestClone_Independent(t *testing.T) {
 	parent := newTsConfig()
 	parent.libraryName = "lib"
 	parent.testPatterns = append(parent.testPatterns, "*.spec.ts")
+	parent.tsconfigTypes = append(parent.tsconfigTypes, "node")
 
 	child := parent.clone()
 	child.libraryName = "src"
 	child.testPatterns = append(child.testPatterns, "**/__tests__/**")
+	child.tsconfigTypes = append(child.tsconfigTypes, "react")
 
 	if parent.libraryName != "lib" {
 		t.Errorf("parent libraryName mutated: %q", parent.libraryName)
 	}
 	if contains(parent.testPatterns, "**/__tests__/**") {
 		t.Errorf("parent testPatterns mutated: %v", parent.testPatterns)
+	}
+	if contains(parent.tsconfigTypes, "react") {
+		t.Errorf("parent tsconfigTypes mutated: %v", parent.tsconfigTypes)
 	}
 }
 

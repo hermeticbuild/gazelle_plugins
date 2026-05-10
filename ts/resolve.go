@@ -48,8 +48,9 @@ var packageImportConditions = map[string]bool{
 
 // resolvedDeps holds the two categories we attach to a rule.
 type resolvedDeps struct {
-	internal []string // intra-repo labels → references / project references
-	external []string // npm labels → deps
+	internal      []string // intra-repo labels → references / project references
+	external      []string // npm labels → deps
+	tsconfigTypes []string // names for the tsconfig compilerOptions.types list
 }
 
 // Resolve converts ImportData (attached during GenerateRules) into Bazel
@@ -81,6 +82,7 @@ func (l *tsLang) Resolve(
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
 		setOrDelete(r, "deps", all)
+		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
 
 	case KindTsTest:
 		// ts_test uses `data` for everything: every npm package, every
@@ -130,6 +132,7 @@ func (l *tsLang) Resolve(
 			break
 		}
 		setOrDelete(r, "deps", all)
+		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
 	}
 }
 
@@ -197,22 +200,35 @@ func (l *tsLang) resolveImportsToDeps(
 		modulePath := strings.TrimPrefix(path, "node:")
 		baseModule := strings.Split(modulePath, "/")[0]
 		if nodeBuiltinModules[baseModule] {
-			result.external = append(result.external, npmLabel(cfg, "@types/node"))
+			result.addNpmDep(cfg, "@types/node")
 			continue
 		}
 
 		// npm packages from package.json deps.
 		if pkgName := matchNpmPackage(path, l.packageDeps); pkgName != "" {
-			result.external = append(result.external, npmLabel(cfg, pkgName))
+			result.addNpmDep(cfg, pkgName)
 			if typesName := typesPackageFor(pkgName, l.packageDeps); typesName != "" {
-				result.external = append(result.external, npmLabel(cfg, typesName))
+				result.addNpmDep(cfg, typesName)
 			}
 		}
 	}
 
 	result.internal = deduplicateAndSort(result.internal)
 	result.external = deduplicateAndSort(result.external)
+	for _, dep := range result.external {
+		if typ := cfg.inferredTsconfigTypeForPackage(tsconfigTypePackageForDepLabel(dep)); typ != "" {
+			result.tsconfigTypes = append(result.tsconfigTypes, typ)
+		}
+	}
+	result.tsconfigTypes = deduplicateAndSort(result.tsconfigTypes)
 	return result
+}
+
+func (d *resolvedDeps) addNpmDep(cfg *tsConfig, pkgName string) {
+	d.external = append(d.external, npmLabel(cfg, pkgName))
+	if typ := cfg.inferredTsconfigTypeForPackage(pkgName); typ != "" {
+		d.tsconfigTypes = append(d.tsconfigTypes, typ)
+	}
 }
 
 // resolveSubpathImport tries each key in subpathImportsMap (longest pattern
@@ -355,6 +371,49 @@ func typesPackageFor(pkgName string, deps map[string]bool) string {
 		return typesName
 	}
 	return ""
+}
+
+func (c *tsConfig) inferredTsconfigTypeForPackage(pkgName string) string {
+	typ := tsconfigTypeFromTypesPath(pkgName)
+	if !stringSliceContains(c.tsconfigTypes, typ) {
+		return ""
+	}
+	return typ
+}
+
+func tsconfigTypeForPackage(pkgName string) string {
+	return tsconfigTypeFromTypesPath(pkgName)
+}
+
+func tsconfigTypePackageForDepLabel(dep string) string {
+	if typ := tsconfigTypeFromTypesPath(dep); typ != "" {
+		return "@types/" + typ
+	}
+	return ""
+}
+
+func tsconfigTypeFromTypesPath(path string) string {
+	idx := strings.LastIndex(path, "@types/")
+	if idx < 0 {
+		return ""
+	}
+	typ := path[idx+len("@types/"):]
+	if end := strings.IndexAny(typ, "/:"); end >= 0 {
+		typ = typ[:end]
+	}
+	return typ
+}
+
+func stringSliceContains(values []string, val string) bool {
+	if val == "" {
+		return false
+	}
+	for _, v := range values {
+		if v == val {
+			return true
+		}
+	}
+	return false
 }
 
 // npmLabel renders the npm-package label using the configured pattern.

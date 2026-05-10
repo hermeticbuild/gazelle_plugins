@@ -23,6 +23,7 @@ const (
 	directiveExtension            = "ts_extension"
 	directiveNpmLinkPattern       = "ts_npm_link_pattern"
 	directiveTestData             = "ts_test_data"
+	directiveTsconfigTypes        = "ts_tsconfig_types"
 	directiveBundlerConfigPattern = "ts_bundler_config_pattern"
 )
 
@@ -44,6 +45,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveExtension,
 		directiveNpmLinkPattern,
 		directiveTestData,
+		directiveTsconfigTypes,
 		directiveBundlerConfigPattern,
 	}
 }
@@ -104,6 +106,10 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 	case directiveTestData:
 		if val != "" {
 			cfg.testData = appendUnique(cfg.testData, val)
+		}
+	case directiveTsconfigTypes:
+		for _, typ := range splitFields(val) {
+			cfg.tsconfigTypes = appendUnique(cfg.tsconfigTypes, typ)
 		}
 	case directiveBundlerConfigPattern:
 		// Format: `<glob> <name>`, e.g. `vite.config.* vite_config`. The

@@ -3,7 +3,7 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 
-def ts_library(name, srcs, **kwargs):
+def ts_library(name, srcs, tsconfig_types = None, **kwargs):
     ts_project(
         name = name,
         srcs = srcs,

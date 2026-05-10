@@ -1,0 +1,7 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+ts_library(
+    name = "custom-ambient",
+    srcs = ["index.d.ts"],
+    visibility = ["//visibility:public"],
+)

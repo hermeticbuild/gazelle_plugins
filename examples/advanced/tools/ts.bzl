@@ -20,7 +20,7 @@ load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@npm//:vitest/package_json.bzl", _vitest_bin = "bin")
 
-def myorg_ts_library(name, srcs, **kwargs):
+def myorg_ts_library(name, srcs, tsconfig_types = None, **kwargs):
     """Project defaults baked in: shared tsconfig + project-references
     compile flags. The plugin doesn't emit these on ts_library."""
     _ts_project(

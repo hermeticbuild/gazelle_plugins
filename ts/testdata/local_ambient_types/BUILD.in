@@ -1,0 +1,12 @@
+# gazelle:ts_tsconfig_types custom-ambient
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+ts_library(
+    name = "lib",
+    deps = [
+        "//vendor/@types/custom-ambient",  # keep
+    ],
+    tsconfig_types = [
+        "custom-ambient",  # keep
+    ],
+)

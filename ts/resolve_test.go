@@ -77,6 +77,34 @@ func TestTypesPackageFor(t *testing.T) {
 	}
 }
 
+func TestTsconfigTypeForPackage(t *testing.T) {
+	cases := map[string]string{
+		"@types/node":                  "node",
+		"@types/react":                 "react",
+		"@types/tanstack__react-query": "tanstack__react-query",
+		"react":                        "",
+	}
+	for pkg, want := range cases {
+		if got := tsconfigTypeForPackage(pkg); got != want {
+			t.Errorf("tsconfigTypeForPackage(%q) = %q, want %q", pkg, got, want)
+		}
+	}
+}
+
+func TestTsconfigTypePackageForDepLabel(t *testing.T) {
+	cases := map[string]string{
+		"//:node_modules/@types/node":          "@types/node",
+		"@npm//@types/react":                   "@types/react",
+		"//deps:node_modules/@types/lodash-es": "@types/lodash-es",
+		"//:node_modules/react":                "",
+	}
+	for dep, want := range cases {
+		if got := tsconfigTypePackageForDepLabel(dep); got != want {
+			t.Errorf("tsconfigTypePackageForDepLabel(%q) = %q, want %q", dep, got, want)
+		}
+	}
+}
+
 func TestNpmLabel(t *testing.T) {
 	cases := []struct {
 		pattern string
@@ -93,6 +121,99 @@ func TestNpmLabel(t *testing.T) {
 		if got != c.want {
 			t.Errorf("npmLabel(%q, %q) = %q, want %q", c.pattern, c.pkg, got, c.want)
 		}
+	}
+}
+
+func TestResolveImportsToDeps_TsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+	lang := &tsLang{
+		packageDeps: map[string]bool{
+			"react":                  true,
+			"@types/react":           true,
+			"@types/node":            true,
+			"@types/lodash":          true,
+			"@types/ws":              true,
+			"@tanstack/query":        true,
+			"@types/tanstack__query": true,
+		},
+		subpathImportsMap: map[string][]string{},
+	}
+	got := lang.resolveImportsToDeps(
+		c,
+		[]ImportStatement{
+			{ImportPath: "node:fs"},
+			{ImportPath: "react"},
+			{ImportPath: "lodash"},
+			{ImportPath: "@tanstack/query"},
+		},
+		label.Label{Pkg: "apps/web", Name: "web"},
+		nil,
+		cfg,
+	)
+	want := []string{"node"}
+	if !reflect.DeepEqual(got.tsconfigTypes, want) {
+		t.Errorf("tsconfigTypes = %v, want %v", got.tsconfigTypes, want)
+	}
+}
+
+func TestResolveImportsToDeps_TsconfigTypesFromOverride(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", &rule.File{
+		Directives: []rule.Directive{
+			ruleDirective("resolve", "ts runtime-only //:node_modules/@types/node"),
+		},
+	})
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{},
+		subpathImportsMap: map[string][]string{},
+	}
+	got := lang.resolveImportsToDeps(
+		c,
+		[]ImportStatement{{ImportPath: "runtime-only"}},
+		label.Label{Pkg: "apps/web", Name: "web"},
+		nil,
+		cfg,
+	)
+	if !reflect.DeepEqual(got.tsconfigTypes, []string{"node"}) {
+		t.Errorf("tsconfigTypes = %v, want [node]", got.tsconfigTypes)
+	}
+}
+
+func TestResolve_TsconfigTypesDirectiveAllowlistsInference(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.tsconfigTypes = []string{"node", "vitest"}
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{"@types/vitest": true},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule(KindTsLibrary, "lib")
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{Imports: []ImportStatement{{ImportPath: "vitest"}}},
+		label.Label{Pkg: "apps/web", Name: "web"},
+	)
+	want := []string{"vitest"}
+	if got := r.AttrStrings("tsconfig_types"); !reflect.DeepEqual(got, want) {
+		t.Errorf("tsconfig_types = %v, want %v", got, want)
 	}
 }
 

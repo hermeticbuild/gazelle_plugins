@@ -22,6 +22,7 @@ myorg_ts_library(
         "main.ts",
         "types.d.ts",
     ],
+    tsconfig_types = ["node"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@myrepo_generated/synthetic",

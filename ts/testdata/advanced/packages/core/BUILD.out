@@ -3,6 +3,7 @@ load("//tools:ts.bzl", "myorg_ts_library")
 myorg_ts_library(
     name = "core",
     srcs = ["index.ts"],
+    tsconfig_types = ["node"],
     visibility = ["//visibility:public"],
     deps = ["//:node_modules/@types/node"],
 )
