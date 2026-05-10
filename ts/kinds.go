@@ -54,9 +54,10 @@ var managedBinaryKinds = []string{KindJsBinary, KindTsBinary}
 var tsKinds = map[string]rule.KindInfo{
 	KindTsLibrary: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "tsconfig_types": true},
 		ResolveAttrs: map[string]bool{
-			"deps": true,
+			"deps":           true,
+			"tsconfig_types": true,
 		},
 	},
 	KindTsTest: {
@@ -82,9 +83,10 @@ var tsKinds = map[string]rule.KindInfo{
 	},
 	KindBundlerConfig: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "tsconfig_types": true},
 		ResolveAttrs: map[string]bool{
-			"deps": true,
+			"deps":           true,
+			"tsconfig_types": true,
 		},
 	},
 }

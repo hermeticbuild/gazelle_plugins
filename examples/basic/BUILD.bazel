@@ -36,6 +36,7 @@ ts_library(
         "app.ts",
         "badge.tsx",
     ],
+    tsconfig_types = ["node"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/lodash-es",

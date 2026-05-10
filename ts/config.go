@@ -29,6 +29,12 @@ var (
 	defaultTestPatterns = []string{"*.test.ts", "*.test.tsx", "tests/**", "test/**"}
 	defaultExtensions   = []string{".ts", ".tsx"}
 	defaultVisibility   = []string{"//visibility:public"}
+
+	// Only ambient type packages belong in compilerOptions.types. Module
+	// declaration packages such as @types/react or @types/lodash are still
+	// needed as deps, but listing them in types unnecessarily narrows global
+	// type discovery. Node builtins are the common ambient case.
+	defaultTsconfigTypes = []string{"node"}
 )
 
 // tsConfig holds per-directory configuration. Gazelle calls Configure() for
@@ -58,6 +64,12 @@ type tsConfig struct {
 	// testData is added to every emitted test rule's `data` attr.
 	testData []string
 
+	// tsconfigTypes is added to every emitted TypeScript compilation rule's
+	// `tsconfig_types` attr when the corresponding @types/* package is
+	// resolved. This is an allowlist of ambient type packages, not a list of
+	// every @types/* dependency.
+	tsconfigTypes []string
+
 	// bundlerConfigSpecs lists the bundler/tooling config files held out of
 	// the library compilation unit, each with its own emitted target name.
 	// Each spec maps a glob pattern to the Bazel target name to emit; matched
@@ -82,6 +94,7 @@ func newTsConfig() *tsConfig {
 		testPatterns:   append([]string(nil), defaultTestPatterns...),
 		extensions:     append([]string(nil), defaultExtensions...),
 		npmLinkPattern: defaultNpmLinkPattern,
+		tsconfigTypes:  append([]string(nil), defaultTsconfigTypes...),
 	}
 }
 
@@ -93,6 +106,7 @@ func (c *tsConfig) clone() *tsConfig {
 	cp.testPatterns = append([]string(nil), c.testPatterns...)
 	cp.extensions = append([]string(nil), c.extensions...)
 	cp.testData = append([]string(nil), c.testData...)
+	cp.tsconfigTypes = append([]string(nil), c.tsconfigTypes...)
 	cp.bundlerConfigSpecs = append([]bundlerConfigSpec(nil), c.bundlerConfigSpecs...)
 	return &cp
 }

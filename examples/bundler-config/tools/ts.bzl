@@ -7,7 +7,7 @@ js_test with the project's defaults baked in.
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 
-def _project(name, srcs, **kwargs):
+def _project(name, srcs, tsconfig_types = None, **kwargs):
     ts_project(
         name = name,
         srcs = srcs,
@@ -19,7 +19,7 @@ def _project(name, srcs, **kwargs):
         **kwargs
     )
 
-def ts_library(name, srcs, **kwargs):
+def ts_library(name, srcs, tsconfig_types = None, **kwargs):
     _project(name = name, srcs = srcs, **kwargs)
 
 def ts_bundler_config(name, srcs, **kwargs):

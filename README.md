@@ -233,6 +233,7 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_extension` | `.ts`, `.tsx` | Repeatable; appended. |
 | `ts_npm_link_pattern` | `//:node_modules/{pkg}` | Template; `{pkg}` is replaced with the resolved package name. |
 | `ts_test_data` | empty | Repeatable; appended to every test rule's `data`. |
+| `ts_tsconfig_types` | `node` | Repeatable / space-separated allowlist of ambient type package names. When a matching `@types/*` dep is resolved, the unprefixed name is emitted in `tsconfig_types`. |
 | `ts_bundler_config_pattern` | empty | Repeatable `<glob> <name>` entries. Files matching the glob are excluded from the library and emitted as a separate `ts_bundler_config` target named `<name>`. Use for vite/vitest/tailwind/storybook configs whose deps should not enter the lib's compilation closure. |
 
 #### Non-Production TypeScript Sources
@@ -259,6 +260,33 @@ Use Gazelle's built-in `exclude` directive for files owned by another package or
 ```
 
 Use `package.json` `imports` for workspace path aliases such as `#packages/*`: the plugin reads that map and walks the RuleIndex to find the longest matching package.
+
+#### Local Ambient Type Packages
+
+For a local `.d.ts`-only package that declares globals and is never imported, keep both the local dep and the `tsconfig_types` entry on the consuming rule:
+
+```bzl
+# gazelle:ts_tsconfig_types custom-ambient
+
+ts_library(
+    name = "lib",
+    deps = [
+        "//vendor/@types/custom-ambient",  # keep
+    ],
+    tsconfig_types = [
+        "custom-ambient",  # keep
+    ],
+)
+```
+
+The local type package itself can be a normal generated `.d.ts`-only target:
+
+```bzl
+ts_library(
+    name = "custom-ambient",
+    srcs = ["index.d.ts"],
+)
+```
 
 #### `ts_bundler_config_pattern` Examples
 
@@ -289,7 +317,12 @@ the plugin emits, before `map_kind` rewrite:
 ts_library(
     name = "app",
     srcs = ["helpers.ts", "index.ts", "viteHelpers.ts"],
-    deps = ["//:node_modules/lodash", "//:node_modules/react"],
+    deps = [
+        "//:node_modules/@types/node",
+        "//:node_modules/lodash",
+        "//:node_modules/react",
+    ],
+    tsconfig_types = ["node"],
 )
 
 ts_bundler_config(
@@ -329,9 +362,10 @@ Key behaviors:
 | `srcs` | generate | mergeable, preserves `# keep` lines |
 | `visibility` | generate | overwritten each run |
 | `deps` | resolve | replaced each run |
+| `tsconfig_types` | resolve | mergeable; inferred from resolved `@types/*` deps allowlisted by `ts_tsconfig_types`, e.g. `@types/node` -> `node` |
 | anything else | _untouched_ | manual overrides survive across runs |
 
-`composite`, `declaration`, `source_map`, `transpiler`, `tsconfig`, and similar compile-shape attrs are not emitted by the plugin; they belong to the macro you map_kind `ts_library` to.
+`composite`, `declaration`, `source_map`, `transpiler`, `tsconfig`, and similar compile-shape attrs are not emitted by the plugin; they belong to the macro you map_kind `ts_library` to. `tsconfig_types` is the exception because it is derived from resolved ambient `@types/*` deps.
 
 #### `ts_test` (abstract)
 
@@ -362,6 +396,7 @@ Gazelle never generates either kind. It piggybacks on the user's existing rule, 
 | `srcs` | generate | mergeable; one entry per matched file |
 | `visibility` | generate | overwritten each run |
 | `deps` | resolve | replaced each run; includes sibling lib label when the config has any relative imports |
+| `tsconfig_types` | resolve | mergeable; inferred from resolved `@types/*` deps allowlisted by `ts_tsconfig_types` |
 | anything else | _untouched_ | manual overrides survive across runs |
 
 ### How Import Resolution Works
@@ -371,9 +406,9 @@ Gazelle never generates either kind. It piggybacks on the user's existing rule, 
    - **Relative** (`./foo`, `../bar`): no dep added.
    - **Override**: `gazelle:resolve ts ...` and `gazelle:resolve_regexp ts ...` win over all TS-specific resolution.
    - **Subpath import**: matches a key in the `package.json` `imports` map. `*` may appear anywhere in the `imports` key and target, so patterns like `"#generated/foo/*/index.js": "./generated/foo/*"` resolve through the RuleIndex to the generated package's actual label. Array fallback targets are tried in order.
-   - **Node.js builtin**: resolves to `@types/node`.
-   - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced; auto-pairs `@types/<pkg>` if present in deps.
-3. Library rules collect resolved labels into `deps`. Test and bundler-config rules do the same into `data` / `deps`.
+   - **Node.js builtin**: resolves to `@types/node` and adds `node` to `tsconfig_types` because `node` is in the default `ts_tsconfig_types` allowlist.
+   - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced and auto-pairs `@types/<pkg>` if present in deps. The paired type package only adds to `tsconfig_types` when its unprefixed name is allowlisted by `ts_tsconfig_types`.
+3. Library rules collect resolved labels into `deps` and inferred type names into `tsconfig_types`. Test and bundler-config rules do the same into `data` / `deps`; bundler-config also gets `tsconfig_types`.
 4. `Imports()` registers each library's package path in the RuleIndex so other directories can look it up via `FindRulesByImportWithConfig`.
 
 ### Running With A Custom Macro (`map_kind`)

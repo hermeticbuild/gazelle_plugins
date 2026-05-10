@@ -36,6 +36,9 @@ ts_library(
         "app.ts",
         "badge.tsx",
     ],
+    tsconfig_types = [
+        "custom-ambient",  # keep
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/lodash-es",
