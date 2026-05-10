@@ -15,7 +15,7 @@ def ts_library(name, srcs, tsconfig_types = None, **kwargs):
         **kwargs
     )
 
-def ts_test(name, data, **kwargs):
+def ts_test(name, data, tsconfig_types = None, **kwargs):
     entry = None
     for d in data:
         if d.endswith(".test.ts") or d.endswith(".test.tsx"):

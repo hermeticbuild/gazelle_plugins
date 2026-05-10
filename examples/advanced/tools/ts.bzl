@@ -34,7 +34,7 @@ def myorg_ts_library(name, srcs, tsconfig_types = None, **kwargs):
         **kwargs
     )
 
-def myorg_ts_binary(name, **kwargs):
+def myorg_ts_binary(name, tsconfig_types = None, **kwargs):
     """Thin wrapper over js_binary for TS entry points. A real consumer
     would set default NODE_OPTIONS, a wrapping launcher script, or
     whatever house style the binaries should run with. The plugin
@@ -44,4 +44,5 @@ def myorg_ts_binary(name, **kwargs):
 # vitest_test auto-discovers test files via the runner's own config — it
 # accepts `data` (the test sources, lib outputs, npm packages) without
 # needing entry_point. The plugin's ts_test kind shape matches exactly.
-vitest_test = _vitest_bin.vitest_test
+def vitest_test(name, data, tsconfig_types = None, **kwargs):
+    _vitest_bin.vitest_test(name = name, data = data, **kwargs)

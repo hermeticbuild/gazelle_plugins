@@ -62,9 +62,10 @@ var tsKinds = map[string]rule.KindInfo{
 	},
 	KindTsTest: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"data": true},
+		MergeableAttrs: map[string]bool{"data": true, "tsconfig_types": true},
 		ResolveAttrs: map[string]bool{
-			"data": true,
+			"data":           true,
+			"tsconfig_types": true,
 		},
 	},
 	KindJsBinary: {
@@ -76,9 +77,10 @@ var tsKinds = map[string]rule.KindInfo{
 	},
 	KindTsBinary: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"data": true},
+		MergeableAttrs: map[string]bool{"data": true, "tsconfig_types": true},
 		ResolveAttrs: map[string]bool{
-			"data": true,
+			"data":           true,
+			"tsconfig_types": true,
 		},
 	},
 	KindBundlerConfig: {

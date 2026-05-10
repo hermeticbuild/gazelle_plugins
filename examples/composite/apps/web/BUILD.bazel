@@ -15,6 +15,7 @@ ts_test(
         "//packages/core",
         "//packages/utils",
     ],
+    tsconfig_types = ["node"],
 )
 
 ts_library(

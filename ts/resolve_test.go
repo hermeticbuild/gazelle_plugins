@@ -217,6 +217,119 @@ func TestResolve_TsconfigTypesDirectiveAllowlistsInference(t *testing.T) {
 	}
 }
 
+func TestResolve_MappedTsLibraryPopulatesTsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	c.KindMap = map[string]config.MappedKind{}
+	c.KindMap[KindTsLibrary] = config.MappedKind{
+		FromKind: KindTsLibrary,
+		KindName: "myorg_ts_library",
+		KindLoad: "//tools:ts.bzl",
+	}
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{"@types/node": true},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule("myorg_ts_library", "lib")
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{Imports: []ImportStatement{{ImportPath: "node:path"}}},
+		label.Label{Pkg: "apps/web", Name: "web"},
+	)
+
+	if got, want := r.AttrStrings("tsconfig_types"), []string{"node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("tsconfig_types = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("deps"), []string{"//:node_modules/@types/node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("deps = %v, want %v", got, want)
+	}
+}
+
+func TestResolve_MappedTsTestPopulatesTsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.tsconfigTypes = []string{"node", "vitest"}
+	c := config.New()
+	c.Exts[languageName] = cfg
+	c.KindMap = map[string]config.MappedKind{}
+	c.KindMap[KindTsTest] = config.MappedKind{
+		FromKind: KindTsTest,
+		KindName: "vitest_test",
+		KindLoad: "//tools:ts.bzl",
+	}
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{"@types/node": true, "@types/vitest": true},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule("vitest_test", "test")
+	r.SetAttr("data", []string{"app.test.ts"})
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{
+			Imports:     []ImportStatement{{ImportPath: "node:path"}},
+			TestImports: []ImportStatement{{ImportPath: "vitest"}},
+		},
+		label.Label{Pkg: "apps/web", Name: "web_test"},
+	)
+
+	if got, want := r.AttrStrings("tsconfig_types"), []string{"node", "vitest"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("tsconfig_types = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("data"), []string{"//:node_modules/@types/node", "//:node_modules/@types/vitest", "app.test.ts"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("data = %v, want %v", got, want)
+	}
+}
+
+func TestResolve_MappedTsBinaryPopulatesTsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	c.KindMap = map[string]config.MappedKind{}
+	c.KindMap[KindTsBinary] = config.MappedKind{
+		FromKind: KindTsBinary,
+		KindName: "myorg_ts_binary",
+		KindLoad: "//tools:ts.bzl",
+	}
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{"@types/node": true},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule("myorg_ts_binary", "cli")
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{Imports: []ImportStatement{{ImportPath: "node:fs"}}},
+		label.Label{Pkg: "apps/cli", Name: "cli"},
+	)
+
+	if got, want := r.AttrStrings("tsconfig_types"), []string{"node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("tsconfig_types = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("data"), []string{"//:node_modules/@types/node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("data = %v, want %v", got, want)
+	}
+}
+
 func TestMatchSubpathImportPattern_NonSuffixWildcard(t *testing.T) {
 	capture, ok := matchSubpathImportPattern("#generated/typespec/rest/*/index.js", "#generated/typespec/rest/users/index.js")
 	if !ok {
