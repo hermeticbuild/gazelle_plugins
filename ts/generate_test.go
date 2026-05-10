@@ -261,7 +261,7 @@ func TestKinds_HasTsBinary(t *testing.T) {
 }
 
 func TestKinds_TsconfigTypesMergeable(t *testing.T) {
-	for _, kind := range []string{KindTsLibrary, KindBundlerConfig} {
+	for _, kind := range []string{KindTsLibrary, KindTsTest, KindTsBinary, KindBundlerConfig} {
 		info := tsKinds[kind]
 		if !info.ResolveAttrs["tsconfig_types"] {
 			t.Errorf("%s should have tsconfig_types as ResolveAttr", kind)

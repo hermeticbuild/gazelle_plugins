@@ -54,8 +54,8 @@ type resolvedDeps struct {
 }
 
 // Resolve converts ImportData (attached during GenerateRules) into Bazel
-// labels and writes them onto the rule. Library rules get `deps` and
-// `references`; test rules collapse both into `deps`.
+// labels and writes them onto the rule. Compilation-shaped rules also get
+// `tsconfig_types` inferred from allowlisted @types/* deps.
 func (l *tsLang) Resolve(
 	c *config.Config,
 	ix *resolve.RuleIndex,
@@ -73,8 +73,8 @@ func (l *tsLang) Resolve(
 		return
 	}
 
-	switch r.Kind() {
-	case KindTsLibrary:
+	switch {
+	case kindMatches(c, r.Kind(), KindTsLibrary):
 		// The ts_library wrapper is expected to forward `deps` to its
 		// underlying ts_project (or equivalent). One attr for both npm
 		// packages and intra-repo project references.
@@ -84,7 +84,7 @@ func (l *tsLang) Resolve(
 		setOrDelete(r, "deps", all)
 		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
 
-	case KindTsTest:
+	case kindMatches(c, r.Kind(), KindTsTest):
 		// ts_test uses `data` for everything: every npm package, every
 		// internal lib the test imports, plus the test sources themselves
 		// (already added in GenerateRules). Merge into the existing data list.
@@ -97,8 +97,11 @@ func (l *tsLang) Resolve(
 		all = append(all, srcResolved.external...)
 		all = append(all, srcResolved.internal...)
 		setOrDelete(r, "data", all)
+		tsconfigTypes := append([]string{}, testResolved.tsconfigTypes...)
+		tsconfigTypes = append(tsconfigTypes, srcResolved.tsconfigTypes...)
+		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 
-	case KindJsBinary, KindTsBinary:
+	case kindMatches(c, r.Kind(), KindJsBinary), kindMatches(c, r.Kind(), KindTsBinary):
 		// We don't generate binary rules — only fill in their `data` attr
 		// based on what their entry_point/srcs import. The user's existing
 		// entry_point, env, fixed_args, etc. are left alone. Same shape
@@ -107,8 +110,11 @@ func (l *tsLang) Resolve(
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
 		setOrDelete(r, "data", all)
+		if kindMatches(c, r.Kind(), KindTsBinary) {
+			setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
+		}
 
-	case KindBundlerConfig:
+	case kindMatches(c, r.Kind(), KindBundlerConfig):
 		// Bundler-config rules are a separate compilation unit so build-time
 		// deps don't enter the lib's runtime closure. Resolution mirrors the
 		// library, plus a sibling-lib link when the config imports any
