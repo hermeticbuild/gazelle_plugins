@@ -25,4 +25,5 @@ ts_test(
         "//:node_modules/react-intl",
         "//packages/core",
     ],
+    tsconfig_types = ["node"],
 )

@@ -60,6 +60,7 @@ ts_test(
         "//:node_modules/@types/node",
         "//:node_modules/lodash-es",
     ],
+    tsconfig_types = ["node"],
 )
 
 ts_bundler_config(

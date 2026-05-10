@@ -25,7 +25,7 @@ def ts_library(name, srcs, tsconfig_types = None, **kwargs):
 def ts_bundler_config(name, srcs, **kwargs):
     _project(name = name, srcs = srcs, **kwargs)
 
-def ts_test(name, data, **kwargs):
+def ts_test(name, data, tsconfig_types = None, **kwargs):
     # Pick the first .test.ts* in data as entry_point for stock js_test.
     entry = None
     for d in data:

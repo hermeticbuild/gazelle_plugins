@@ -14,6 +14,7 @@ myorg_ts_binary(
         "//tools:mystery",
     ],
     entry_point = "main.ts",
+    tsconfig_types = ["node"],
 )
 
 myorg_ts_library(
