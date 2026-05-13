@@ -29,9 +29,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// extractImports sends a batch of file paths and returns parsed imports keyed
-// by file path. Files that fail to parse are silently dropped by the Rust side.
-func extractImports(files []string) (map[string][]string, error) {
+type extractedTSFile struct {
+	ImportPaths []string
+	GlobalNames []string
+}
+
+// extractImports sends a batch of file paths and returns parsed TypeScript
+// references keyed by file path. Files that fail to parse are silently dropped
+// by the Rust side.
+func extractImports(files []string) (map[string]extractedTSFile, error) {
 	req := &pb.Request{
 		Data: &pb.Request_TsQuery{
 			TsQuery: &pb.TsQueryRequest{Files: files},
@@ -45,9 +51,12 @@ func extractImports(files []string) (map[string][]string, error) {
 	case *pb.Response_Error:
 		return nil, fmt.Errorf("import-extractor: %s", d.Error.Message)
 	case *pb.Response_TsResult:
-		out := make(map[string][]string, len(d.TsResult.Imports))
+		out := make(map[string]extractedTSFile, len(d.TsResult.Imports))
 		for _, fi := range d.TsResult.Imports {
-			out[fi.File] = fi.ImportPaths
+			out[fi.File] = extractedTSFile{
+				ImportPaths: fi.ImportPaths,
+				GlobalNames: fi.GlobalNames,
+			}
 		}
 		return out, nil
 	default:

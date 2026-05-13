@@ -32,6 +32,8 @@ func kindMatches(c *config.Config, ruleKind, canonical string) bool {
 type ImportData struct {
 	Imports     []ImportStatement // source-file imports
 	TestImports []ImportStatement // test-file imports
+	Globals     []GlobalReference // source-file global references
+	TestGlobals []GlobalReference // test-file global references
 }
 
 // GenerateRules walks a directory's files, partitions them into source vs.
@@ -102,26 +104,31 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	}
 
 	var sourceImports, testImports []ImportStatement
+	var sourceGlobals, testGlobals []GlobalReference
 	bundlerImportsBySpec := map[int][]ImportStatement{}
-	allImports := map[string][]ImportStatement{}
+	bundlerGlobalsBySpec := map[int][]GlobalReference{}
+	allRefs := map[string]ExtractedReferences{}
 	if len(tsFiles) > 0 {
-		allImports, _ = l.extractImportsBatch(tsFiles)
+		allRefs, _ = l.extractImportsBatch(tsFiles)
 		for _, f := range args.RegularFiles {
 			if !isTypeScriptFile(f, cfg) {
 				continue
 			}
 			fullPath := filepath.Join(args.Dir, f)
-			imps := allImports[fullPath]
+			refs := allRefs[fullPath]
 			// Bundler-config classification wins over test classification —
 			// matches collectSrcs.
 			if idx, ok := matchBundlerConfigSpec(f, cfg); ok {
-				bundlerImportsBySpec[idx] = append(bundlerImportsBySpec[idx], imps...)
+				bundlerImportsBySpec[idx] = append(bundlerImportsBySpec[idx], refs.Imports...)
+				bundlerGlobalsBySpec[idx] = append(bundlerGlobalsBySpec[idx], refs.Globals...)
 				continue
 			}
 			if isTestFile(f, cfg) {
-				testImports = append(testImports, imps...)
+				testImports = append(testImports, refs.Imports...)
+				testGlobals = append(testGlobals, refs.Globals...)
 			} else {
-				sourceImports = append(sourceImports, imps...)
+				sourceImports = append(sourceImports, refs.Imports...)
+				sourceGlobals = append(sourceGlobals, refs.Globals...)
 			}
 		}
 	}
@@ -146,7 +153,10 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			r.SetAttr("visibility", cfg.visibility)
 		}
 		genRules = append(genRules, r)
-		genImports = append(genImports, ImportData{Imports: sourceImports})
+		genImports = append(genImports, ImportData{
+			Imports: sourceImports,
+			Globals: sourceGlobals,
+		})
 	}
 
 	if len(testSrcs) > 0 {
@@ -164,6 +174,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{
 			TestImports: testImports,
+			TestGlobals: testGlobals,
 		})
 	}
 
@@ -173,11 +184,17 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	// `data` from the entry_point/srcs imports.
 	for _, b := range binaries {
 		var imps []ImportStatement
+		var globals []GlobalReference
 		for _, f := range b.files {
-			imps = append(imps, allImports[filepath.Join(args.Dir, f)]...)
+			refs := allRefs[filepath.Join(args.Dir, f)]
+			imps = append(imps, refs.Imports...)
+			globals = append(globals, refs.Globals...)
 		}
 		genRules = append(genRules, rule.NewRule(b.kind, b.name))
-		genImports = append(genImports, ImportData{Imports: imps})
+		genImports = append(genImports, ImportData{
+			Imports: imps,
+			Globals: globals,
+		})
 	}
 
 	// Bundler-config rules — one per spec target name. Multiple specs may
@@ -188,6 +205,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		name    string
 		srcs    []string
 		imports []ImportStatement
+		globals []GlobalReference
 	}
 	var bundlerGroups []*bundlerGroup
 	bundlerGroupsByName := map[string]*bundlerGroup{}
@@ -204,6 +222,7 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 		}
 		g.srcs = append(g.srcs, files...)
 		g.imports = append(g.imports, bundlerImportsBySpec[idx]...)
+		g.globals = append(g.globals, bundlerGlobalsBySpec[idx]...)
 	}
 	for _, g := range bundlerGroups {
 		// Files are unique across specs (longest-pattern-wins), but if multiple
@@ -215,7 +234,10 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 			r.SetAttr("visibility", cfg.visibility)
 		}
 		genRules = append(genRules, r)
-		genImports = append(genImports, ImportData{Imports: g.imports})
+		genImports = append(genImports, ImportData{
+			Imports: g.imports,
+			Globals: g.globals,
+		})
 	}
 
 	return language.GenerateResult{

@@ -28,6 +28,17 @@ pub fn extract_imports_from_file(path: &str) -> Result<Vec<String>, String> {
     Ok(extract_imports(path, &source_text))
 }
 
+pub struct ExtractedReferences {
+    pub imports: Vec<String>,
+    pub globals: Vec<String>,
+}
+
+pub fn extract_references_from_file(path: &str) -> Result<ExtractedReferences, String> {
+    let source_text =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
+    Ok(extract_references(path, &source_text))
+}
+
 /// Extract all import paths from TypeScript/TSX source code.
 ///
 /// For malformed files, oxc performs error recovery and produces a partial AST.
@@ -36,6 +47,10 @@ pub fn extract_imports_from_file(path: &str) -> Result<Vec<String>, String> {
 /// their valid imports resolved. Since gazelle runs as a pre-commit hook, the
 /// file will typically be fixed before the next run.
 pub fn extract_imports(path: &str, source_text: &str) -> Vec<String> {
+    extract_references(path, source_text).imports
+}
+
+pub fn extract_references(path: &str, source_text: &str) -> ExtractedReferences {
     let allocator = Allocator::default();
     // SourceType::from_path sets jsx=true for .tsx, jsx=false for .ts/.mts/.cts.
     // Do NOT override with with_jsx(true) — it causes oxc to misparse TypeScript
@@ -47,31 +62,79 @@ pub fn extract_imports(path: &str, source_text: &str) -> Vec<String> {
 
     let mut visitor = ImportVisitor::new();
     visitor.visit_program(&ret.program);
-    visitor.into_imports()
+    visitor.into_references()
 }
 
-/// AST visitor that collects import paths from TypeScript source code.
+/// AST visitor that collects import paths and global references from TypeScript source code.
 struct ImportVisitor {
     imports: Vec<String>,
-    seen: HashSet<String>,
+    globals: Vec<String>,
+    seen_imports: HashSet<String>,
+    seen_globals: HashSet<String>,
 }
 
 impl ImportVisitor {
     fn new() -> Self {
         Self {
             imports: Vec::new(),
-            seen: HashSet::new(),
+            globals: Vec::new(),
+            seen_imports: HashSet::new(),
+            seen_globals: HashSet::new(),
         }
     }
 
     fn add(&mut self, path: &str) {
-        if !path.is_empty() && self.seen.insert(path.to_string()) {
+        if !path.is_empty() && self.seen_imports.insert(path.to_string()) {
             self.imports.push(path.to_string());
         }
     }
 
-    fn into_imports(self) -> Vec<String> {
-        self.imports
+    fn add_global(&mut self, name: &str) {
+        if !name.is_empty() && self.seen_globals.insert(name.to_string()) {
+            self.globals.push(name.to_string());
+        }
+    }
+
+    fn add_static_member_globals(&mut self, expr: &StaticMemberExpression<'_>) {
+        let Some(parts) = expression_chain(&expr.object) else {
+            return;
+        };
+        let mut chain = String::new();
+        for (idx, part) in parts
+            .iter()
+            .chain([expr.property.name.as_str()].iter())
+            .enumerate()
+        {
+            if idx > 0 {
+                chain.push('.');
+            }
+            chain.push_str(part);
+            if idx > 0 {
+                self.add_global(&chain);
+            }
+        }
+    }
+
+    fn into_references(self) -> ExtractedReferences {
+        ExtractedReferences {
+            imports: self.imports,
+            globals: self.globals,
+        }
+    }
+}
+
+fn expression_chain<'a>(expr: &'a Expression<'a>) -> Option<Vec<&'a str>> {
+    match expr {
+        Expression::Identifier(ident) => Some(vec![ident.name.as_str()]),
+        Expression::MetaProperty(meta) => {
+            Some(vec![meta.meta.name.as_str(), meta.property.name.as_str()])
+        }
+        Expression::StaticMemberExpression(member) => {
+            let mut parts = expression_chain(&member.object)?;
+            parts.push(member.property.name.as_str());
+            Some(parts)
+        }
+        _ => None,
     }
 }
 
@@ -108,6 +171,16 @@ impl<'a> Visit<'a> for ImportVisitor {
     fn visit_ts_import_type(&mut self, it: &TSImportType<'a>) {
         self.add(it.source.value.as_str());
         walk::walk_ts_import_type(self, it);
+    }
+
+    fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'a>) {
+        self.add_global(ident.name.as_str());
+        walk::walk_identifier_reference(self, ident);
+    }
+
+    fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'a>) {
+        self.add_static_member_globals(expr);
+        walk::walk_static_member_expression(self, expr);
     }
 }
 
@@ -168,6 +241,44 @@ mod tests {
     fn dynamic_import() {
         let imports = extract_imports("test.ts", "const m = await import('lazy');");
         assert_eq!(imports, vec!["lazy"]);
+    }
+
+    #[test]
+    fn globals() {
+        let refs = extract_references(
+            "test.ts",
+            r#"
+            process.env.NODE_ENV;
+            chrome.runtime.sendMessage('hi');
+            google.accounts.id.initialize({});
+            const local = process;
+        "#,
+        );
+        assert_eq!(refs.imports, Vec::<String>::new());
+        assert_eq!(
+            refs.globals,
+            vec![
+                "process.env",
+                "process.env.NODE_ENV",
+                "process",
+                "chrome.runtime",
+                "chrome.runtime.sendMessage",
+                "chrome",
+                "google.accounts",
+                "google.accounts.id",
+                "google.accounts.id.initialize",
+                "google",
+            ]
+        );
+    }
+
+    #[test]
+    fn import_meta_env_is_extracted_as_a_global_chain() {
+        let refs = extract_references("test.ts", "import.meta.env.VITE_FOO;");
+        assert_eq!(
+            refs.globals,
+            vec!["import.meta", "import.meta.env", "import.meta.env.VITE_FOO"]
+        );
     }
 
     #[test]

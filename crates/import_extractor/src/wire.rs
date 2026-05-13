@@ -42,10 +42,11 @@ pub fn handle_ts(id: u32, req: pb::TsQueryRequest) -> pb::Response {
     let imports: Vec<pb::TsImportByFile> = req
         .files
         .par_iter()
-        .filter_map(|file| match ts::extract_imports_from_file(file) {
-            Ok(import_paths) => Some(pb::TsImportByFile {
+        .filter_map(|file| match ts::extract_references_from_file(file) {
+            Ok(refs) => Some(pb::TsImportByFile {
                 file: file.clone(),
-                import_paths,
+                import_paths: refs.imports,
+                global_names: refs.globals,
             }),
             Err(e) => {
                 eprintln!("import_extractor: skipping {file}: {e}");
