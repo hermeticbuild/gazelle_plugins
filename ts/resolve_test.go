@@ -301,6 +301,40 @@ func TestResolve_MappedTsTestPopulatesTsconfigTypes(t *testing.T) {
 	}
 }
 
+func TestResolve_TsTestPreservesExplicitTsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{subpathImportsMap: map[string][]string{}}
+	r := rule.NewRule(KindTsTest, "test")
+	r.SetAttr("srcs", []string{"app.test.ts"})
+	r.SetAttr("deps", []string{"//:node_modules/@types/node"})
+	r.SetAttr("tsconfig_types", []string{"node"})
+
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{},
+		label.Label{Pkg: "apps/web", Name: "web_test"},
+	)
+
+	if got, want := r.AttrStrings("srcs"), []string{"app.test.ts"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("srcs = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("deps"), []string{"//:node_modules/@types/node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("deps = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("tsconfig_types"), []string{"node"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("tsconfig_types = %v, want %v", got, want)
+	}
+}
+
 func TestResolve_MappedTsBinaryPopulatesTsconfigTypes(t *testing.T) {
 	cfg := newTsConfig()
 	c := config.New()

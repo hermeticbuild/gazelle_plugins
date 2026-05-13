@@ -35,10 +35,12 @@ func TestIsTestFile_DefaultPatterns(t *testing.T) {
 	cases := map[string]bool{
 		"foo.test.ts":                true,
 		"foo.test.tsx":               true,
+		"foo.spec.ts":                true,
+		"nested/foo.test.ts":         true,
+		"nested/foo.spec.tsx":        true,
 		"tests/index.ts":             true,
 		"test/main.ts":               true,
 		"src/foo.ts":                 false,
-		"foo.spec.ts":                false, // not in default patterns
 		"deeply/nested/test/file.ts": false, // patterns are top-level prefixes
 	}
 	for name, want := range cases {
@@ -142,6 +144,7 @@ func TestCollectSrcs(t *testing.T) {
 		"helper.ts",
 		"types.tsx",
 		"main.test.ts",
+		"nested/main.spec.ts",
 		"tests/integration.ts",
 		"README.md",
 		"package.json",
@@ -149,7 +152,7 @@ func TestCollectSrcs(t *testing.T) {
 	parts := collectSrcs(files, cfg)
 
 	wantLibs := []string{"helper.ts", "main.ts", "types.tsx"}
-	wantTests := []string{"main.test.ts", "tests/integration.ts"}
+	wantTests := []string{"main.test.ts", "nested/main.spec.ts", "tests/integration.ts"}
 	if !reflect.DeepEqual(parts.lib, wantLibs) {
 		t.Errorf("libs = %v, want %v", parts.lib, wantLibs)
 	}

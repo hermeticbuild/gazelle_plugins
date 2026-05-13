@@ -95,7 +95,8 @@ func (l *tsLang) Resolve(
 		all = append(all, testResolved.external...)
 		all = append(all, testResolved.internal...)
 		setOrDelete(r, "deps", all)
-		tsconfigTypes := append([]string{}, testResolved.tsconfigTypes...)
+		tsconfigTypes := append([]string{}, r.AttrStrings("tsconfig_types")...)
+		tsconfigTypes = append(tsconfigTypes, testResolved.tsconfigTypes...)
 		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 
 	case kindMatches(c, r.Kind(), KindJsBinary), kindMatches(c, r.Kind(), KindTsBinary):
