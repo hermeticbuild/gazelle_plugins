@@ -10,9 +10,7 @@ ts_library(
 
 ts_test(
     name = "test",
-    data = [
-        "app.test.ts",
-        ":lib",
-        "//fixtures:shared",
-    ],
+    srcs = ["app.test.ts"],
+    data = ["//fixtures:shared"],
+    deps = [":lib"],
 )

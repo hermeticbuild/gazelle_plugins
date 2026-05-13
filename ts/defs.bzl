@@ -43,8 +43,8 @@ def _abstract_kind(kind, name, srcs_or_data):
 def ts_library(name, srcs, **_kwargs):
     _abstract_kind("ts_library", name, srcs)
 
-def ts_test(name, data, **_kwargs):
-    _abstract_kind("ts_test", name, data)
+def ts_test(name, srcs, deps = [], data = [], **_kwargs):
+    _abstract_kind("ts_test", name, srcs + deps + data)
 
 def ts_binary(name, data = None, **_kwargs):
     _abstract_kind("ts_binary", name, data or [])

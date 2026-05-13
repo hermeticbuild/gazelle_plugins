@@ -2,8 +2,6 @@ load("//:defs.bzl", "my_ts_test")
 
 my_ts_test(
     name = "tests_test",
-    data = [
-        "foo.spec.ts",
-        "//:lib",
-    ],
+    srcs = ["foo.spec.ts"],
+    deps = ["//:lib"],
 )

@@ -150,21 +150,19 @@ func (l *tsLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 	}
 
 	if len(testSrcs) > 0 {
-		// Emit the abstract ts_test kind. We assume a multi-entry runner
-		// (vitest, jest, mocha) — the wrapper macro behind the kind
-		// auto-discovers tests from `data` and doesn't need entry_point.
-		// `data` carries the test sources, fixtures, npm packages, and
-		// the sibling lib's compiled output.
+		// Emit the abstract ts_test kind. Test entrypoints, compile-time deps,
+		// and runtime fixtures are distinct attrs so wrapper macros can
+		// typecheck only the test files and consume implementation via deps.
 		r := rule.NewRule(KindTsTest, testName)
-		data := append([]string{}, testSrcs...)
-		data = append(data, cfg.testData...)
-		if len(libSrcs) > 0 {
-			data = append(data, ":"+libName)
+		r.SetAttr("srcs", testSrcs)
+		if len(cfg.testData) > 0 {
+			r.SetAttr("data", cfg.testData)
 		}
-		r.SetAttr("data", data)
+		if len(libSrcs) > 0 {
+			r.SetAttr("deps", []string{":" + libName})
+		}
 		genRules = append(genRules, r)
 		genImports = append(genImports, ImportData{
-			Imports:     sourceImports,
 			TestImports: testImports,
 		})
 	}

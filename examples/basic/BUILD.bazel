@@ -50,15 +50,10 @@ ts_library(
 
 ts_test(
     name = "test",
-    data = [
-        "app.test.ts",
-        ":lib",
-        "//:node_modules/@types/lodash-es",
-        "//:node_modules/@types/node",
-        "//:node_modules/@types/react",
-        "//:node_modules/lodash-es",
-        "//:node_modules/react",
-        "//:node_modules/react-intl",
-    ],
+    srcs = ["app.test.ts"],
     tsconfig_types = ["node"],
+    deps = [
+        ":lib",
+        "//:node_modules/@types/node",
+    ],
 )

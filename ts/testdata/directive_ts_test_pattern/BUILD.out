@@ -10,8 +10,6 @@ ts_library(
 
 ts_test(
     name = "test",
-    data = [
-        "app.spec.ts",
-        ":lib",
-    ],
+    srcs = ["app.spec.ts"],
+    deps = [":lib"],
 )
