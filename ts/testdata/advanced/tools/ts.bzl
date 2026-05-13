@@ -41,8 +41,8 @@ def myorg_ts_binary(name, tsconfig_types = None, **kwargs):
     auto-manages `data` from the rule's entry_point/srcs imports."""
     _js_binary(name = name, **kwargs)
 
-# vitest_test auto-discovers test files via the runner's own config — it
-# accepts `data` (the test sources, lib outputs, npm packages) without
-# needing entry_point. The plugin's ts_test kind shape matches exactly.
-def vitest_test(name, data, tsconfig_types = None, **kwargs):
-    _vitest_bin.vitest_test(name = name, data = data, **kwargs)
+# vitest_test auto-discovers test files via the runner's own config. The
+# generated ts_test shape keeps entrypoints, import deps, and runtime fixtures
+# separate; rules_js wants them together in runfiles.
+def vitest_test(name, srcs, deps = [], data = [], tsconfig_types = None, **kwargs):
+    _vitest_bin.vitest_test(name = name, data = srcs + deps + data, **kwargs)

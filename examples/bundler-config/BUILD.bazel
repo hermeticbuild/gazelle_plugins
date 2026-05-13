@@ -53,12 +53,11 @@ ts_library(
 
 ts_test(
     name = "test",
-    data = [
-        "app.test.ts",
+    srcs = ["app.test.ts"],
+    tsconfig_types = ["node"],
+    deps = [
         ":lib",
-        "//:node_modules/@types/lodash-es",
         "//:node_modules/@types/node",
-        "//:node_modules/lodash-es",
     ],
 )
 

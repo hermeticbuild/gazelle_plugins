@@ -8,8 +8,6 @@ ts_library(
 
 ts_test(
     name = "test",
-    data = [
-        "app.test.ts",
-        ":lib",
-    ],
+    srcs = ["app.test.ts"],
+    deps = [":lib"],
 )

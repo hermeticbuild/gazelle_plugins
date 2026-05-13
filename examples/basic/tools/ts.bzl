@@ -20,13 +20,7 @@ def ts_library(name, srcs, tsconfig_types = None, **kwargs):
         **kwargs
     )
 
-def ts_test(name, data, tsconfig_types = None, **kwargs):
-    # Stock js_test needs an entry_point; pick the first .test.ts* in data.
-    # If you migrate to vitest_test/jest_test, drop this and forward data
-    # straight to the runner.
-    entry = None
-    for d in data:
-        if d.endswith(".test.ts") or d.endswith(".test.tsx"):
-            entry = d
-            break
-    js_test(name = name, data = data, entry_point = entry, **kwargs)
+def ts_test(name, srcs, deps = [], data = [], tsconfig_types = None, **kwargs):
+    # Stock js_test needs one entry_point; generated ts_test srcs are already
+    # the test entrypoints.
+    js_test(name = name, data = srcs + deps + data, entry_point = srcs[0], **kwargs)

@@ -26,8 +26,9 @@ import (
 //	# gazelle:map_kind ts_bundler_config  <macro> <load_path>
 //
 // `ts_test` assumes a multi-entry runner (vitest, jest, mocha): it's
-// emitted with `data` only, no `entry_point`. Wrappers can pick an entry
-// from data when needed by an underlying runner like js_test.
+// emitted with test entrypoints in `srcs`, import deps in `deps`, and
+// runtime fixtures in `data`. Wrappers can pick an entry from srcs when
+// needed by an underlying runner like js_test.
 //
 // `ts_binary` and `js_binary` are both hand-written by the user — we never
 // generate them. The plugin scans the rule's `entry_point`/`srcs` imports
@@ -62,9 +63,9 @@ var tsKinds = map[string]rule.KindInfo{
 	},
 	KindTsTest: {
 		NonEmptyAttrs:  map[string]bool{"name": true},
-		MergeableAttrs: map[string]bool{"data": true, "tsconfig_types": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "data": true, "tsconfig_types": true},
 		ResolveAttrs: map[string]bool{
-			"data":           true,
+			"deps":           true,
 			"tsconfig_types": true,
 		},
 	},

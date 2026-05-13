@@ -86,20 +86,16 @@ func (l *tsLang) Resolve(
 		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
 
 	case kindMatches(c, r.Kind(), KindTsTest):
-		// ts_test uses `data` for everything: every npm package, every
-		// internal lib the test imports, plus the test sources themselves
-		// (already added in GenerateRules). Merge into the existing data list.
+		// ts_test keeps the standard Bazel split: srcs are test entrypoints,
+		// deps are compile-time/import deps (including a generated sibling lib
+		// dep), and data remains runtime fixtures only.
 		testResolved := l.resolveImportsToDeps(c, importData.TestImports, from, ix, cfg)
-		srcResolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
-		existing := r.AttrStrings("data")
+		existing := r.AttrStrings("deps")
 		all := append([]string{}, existing...)
 		all = append(all, testResolved.external...)
 		all = append(all, testResolved.internal...)
-		all = append(all, srcResolved.external...)
-		all = append(all, srcResolved.internal...)
-		setOrDelete(r, "data", all)
+		setOrDelete(r, "deps", all)
 		tsconfigTypes := append([]string{}, testResolved.tsconfigTypes...)
-		tsconfigTypes = append(tsconfigTypes, srcResolved.tsconfigTypes...)
 		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 
 	case kindMatches(c, r.Kind(), KindJsBinary), kindMatches(c, r.Kind(), KindTsBinary):
