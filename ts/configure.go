@@ -24,6 +24,7 @@ const (
 	directiveNpmLinkPattern       = "ts_npm_link_pattern"
 	directiveTestData             = "ts_test_data"
 	directiveTsconfigTypes        = "ts_tsconfig_types"
+	directiveResolveGlobal        = "ts_resolve_global"
 	directiveBundlerConfigPattern = "ts_bundler_config_pattern"
 )
 
@@ -46,6 +47,7 @@ func (l *tsLang) KnownDirectives() []string {
 		directiveNpmLinkPattern,
 		directiveTestData,
 		directiveTsconfigTypes,
+		directiveResolveGlobal,
 		directiveBundlerConfigPattern,
 	}
 }
@@ -111,6 +113,12 @@ func applyDirective(cfg *tsConfig, d rule.Directive) {
 		for _, typ := range splitFields(val) {
 			cfg.tsconfigTypes = appendUnique(cfg.tsconfigTypes, typ)
 		}
+	case directiveResolveGlobal:
+		fields := strings.Fields(val)
+		if len(fields) != 2 {
+			return
+		}
+		cfg.globalResolves[fields[0]] = fields[1]
 	case directiveBundlerConfigPattern:
 		// Format: `<glob> <name>`, e.g. `vite.config.* vite_config`. The
 		// glob is matched against package-relative file paths; <name> is

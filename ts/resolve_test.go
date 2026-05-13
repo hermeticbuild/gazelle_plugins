@@ -105,6 +105,21 @@ func TestTsconfigTypePackageForDepLabel(t *testing.T) {
 	}
 }
 
+func TestTsconfigTypeForGlobalDepLabel(t *testing.T) {
+	cases := map[string]string{
+		"//:node_modules/@types/node":   "node",
+		"//:node_modules/@types/chrome": "chrome",
+		"@npm//@types/google.accounts":  "google.accounts",
+		"//app/frontend/@types/app-env": "app-env",
+		"//types:custom-global-env":     "custom-global-env",
+	}
+	for dep, want := range cases {
+		if got := tsconfigTypeForGlobalDepLabel(dep); got != want {
+			t.Errorf("tsconfigTypeForGlobalDepLabel(%q) = %q, want %q", dep, got, want)
+		}
+	}
+}
+
 func TestNpmLabel(t *testing.T) {
 	cases := []struct {
 		pattern string
@@ -121,6 +136,32 @@ func TestNpmLabel(t *testing.T) {
 		if got != c.want {
 			t.Errorf("npmLabel(%q, %q) = %q, want %q", c.pattern, c.pkg, got, c.want)
 		}
+	}
+}
+
+func TestResolveGlobalsToDeps(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.globalResolves["process"] = "//:node_modules/@types/node"
+	cfg.globalResolves["chrome"] = "//:node_modules/@types/chrome"
+	cfg.globalResolves["google.accounts"] = "//:node_modules/@types/google.accounts"
+	cfg.globalResolves["import.meta.env"] = "//app/frontend/@types/app-env"
+
+	got := resolveGlobalsToDeps(
+		[]GlobalReference{
+			{Name: "process"},
+			{Name: "process"},
+			{Name: "chrome"},
+			{Name: "google.accounts"},
+			{Name: "import.meta.env"},
+		},
+		cfg,
+	)
+
+	if want := []string{"//:node_modules/@types/chrome", "//:node_modules/@types/google.accounts", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
+		t.Errorf("external = %v, want %v", got.external, want)
+	}
+	if want := []string{"app-env", "chrome", "google.accounts", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
+		t.Errorf("tsconfigTypes = %v, want %v", got.tsconfigTypes, want)
 	}
 }
 
@@ -214,6 +255,57 @@ func TestResolve_TsconfigTypesDirectiveAllowlistsInference(t *testing.T) {
 	want := []string{"vitest"}
 	if got := r.AttrStrings("tsconfig_types"); !reflect.DeepEqual(got, want) {
 		t.Errorf("tsconfig_types = %v, want %v", got, want)
+	}
+}
+
+func TestResolve_TsLibraryUsesResolvedGlobals(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.globalResolves["process"] = "//:node_modules/@types/node"
+	cfg.globalResolves["chrome"] = "//:node_modules/@types/chrome"
+	cfg.globalResolves["google.accounts"] = "//:node_modules/@types/google.accounts"
+	cfg.globalResolves["import.meta.env"] = "//app/frontend/@types/import-meta-env"
+	cfg.globalResolves["appEnv"] = "//app/frontend/@types/app-env"
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule(KindTsLibrary, "lib")
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{
+			Globals: []GlobalReference{
+				{Name: "process"},
+				{Name: "chrome"},
+				{Name: "google.accounts"},
+				{Name: "import.meta.env"},
+				{Name: "appEnv"},
+			},
+		},
+		label.Label{Pkg: "apps/web", Name: "web"},
+	)
+
+	wantDeps := []string{
+		"//:node_modules/@types/chrome",
+		"//:node_modules/@types/google.accounts",
+		"//:node_modules/@types/node",
+		"//app/frontend/@types/app-env",
+		"//app/frontend/@types/import-meta-env",
+	}
+	if got := r.AttrStrings("deps"); !reflect.DeepEqual(got, wantDeps) {
+		t.Errorf("deps = %v, want %v", got, wantDeps)
+	}
+	wantTypes := []string{"app-env", "chrome", "google.accounts", "import-meta-env", "node"}
+	if got := r.AttrStrings("tsconfig_types"); !reflect.DeepEqual(got, wantTypes) {
+		t.Errorf("tsconfig_types = %v, want %v", got, wantTypes)
 	}
 }
 

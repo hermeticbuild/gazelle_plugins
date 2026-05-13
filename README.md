@@ -234,6 +234,7 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_npm_link_pattern` | `//:node_modules/{pkg}` | Template; `{pkg}` is replaced with the resolved package name. |
 | `ts_test_data` | empty | Repeatable; appended to every test rule's `data`. |
 | `ts_tsconfig_types` | `node` | Repeatable / space-separated allowlist of ambient type package names. When a matching `@types/*` dep is resolved, the unprefixed name is emitted in `tsconfig_types`. |
+| `ts_resolve_global` | empty | Repeatable `<global> <label>` entries. When source references `<global>`, the label is added to `deps` and a `tsconfig_types` entry is inferred from the label. |
 | `ts_bundler_config_pattern` | empty | Repeatable `<glob> <name>` entries. Files matching the glob are excluded from the library and emitted as a separate `ts_bundler_config` target named `<name>`. Use for vite/vitest/tailwind/storybook configs whose deps should not enter the lib's compilation closure. |
 
 #### Non-Production TypeScript Sources
@@ -263,21 +264,32 @@ Use `package.json` `imports` for workspace path aliases such as `#packages/*`: t
 
 #### Local Ambient Type Packages
 
-For a local `.d.ts`-only package that declares globals and is never imported, keep both the local dep and the `tsconfig_types` entry on the consuming rule:
+For `.d.ts`-only packages that declare globals and are never imported, map the global name to the ambient type target:
 
 ```bzl
-# gazelle:ts_tsconfig_types custom-ambient
+# gazelle:ts_resolve_global process //:node_modules/@types/node
+# gazelle:ts_resolve_global chrome //:node_modules/@types/chrome
+# gazelle:ts_resolve_global import.meta.env //app/frontend/@types/app-env
+# gazelle:ts_resolve_global appEnv //app/frontend/@types/app-env
+```
 
+When Gazelle sees those globals in source, it emits both the dep and a `tsconfig_types` entry inferred from the label:
+
+```bzl
 ts_library(
     name = "lib",
     deps = [
-        "//vendor/@types/custom-ambient",  # keep
+        "//:node_modules/@types/node",
+        "//app/frontend/@types/app-env",
     ],
     tsconfig_types = [
-        "custom-ambient",  # keep
+        "node",
+        "app-env",
     ],
 )
 ```
+
+Labels under `@types/<name>` infer `<name>`; otherwise the target/package basename is used.
 
 The local type package itself can be a normal generated `.d.ts`-only target:
 
@@ -412,6 +424,7 @@ Gazelle never generates either kind. It piggybacks on the user's existing rule, 
    - **Subpath import**: matches a key in the `package.json` `imports` map. `*` may appear anywhere in the `imports` key and target, so patterns like `"#generated/foo/*/index.js": "./generated/foo/*"` resolve through the RuleIndex to the generated package's actual label. Array fallback targets are tried in order.
    - **Node.js builtin**: resolves to `@types/node` and adds `node` to `tsconfig_types` because `node` is in the default `ts_tsconfig_types` allowlist.
    - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced and auto-pairs `@types/<pkg>` if present in deps. The paired type package only adds to `tsconfig_types` when its unprefixed name is allowlisted by `ts_tsconfig_types`.
+   - **Global reference**: when a referenced global matches `ts_resolve_global`, its label is added to `deps` and its type name is inferred from the label (`@types/node` -> `node`, `//pkg/@types/app-env` -> `app-env`).
 3. Library, test, and bundler-config rules collect resolved labels into `deps` and inferred type names into `tsconfig_types`.
 4. `Imports()` registers each library's package path in the RuleIndex so other directories can look it up via `FindRulesByImportWithConfig`.
 

@@ -1,0 +1,24 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")
+
+# gazelle:ts_resolve_global process //:node_modules/@types/node
+# gazelle:ts_resolve_global chrome //:node_modules/@types/chrome
+# gazelle:ts_resolve_global import.meta.env //app/frontend/@types/import-meta-env
+# gazelle:ts_resolve_global appEnv //app/frontend/@types/app-env
+
+ts_library(
+    name = "lib",
+    srcs = ["app.ts"],
+    tsconfig_types = [
+        "app-env",
+        "chrome",
+        "import-meta-env",
+        "node",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/chrome",
+        "//:node_modules/@types/node",
+        "//app/frontend/@types/app-env",
+        "//app/frontend/@types/import-meta-env",
+    ],
+)

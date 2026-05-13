@@ -80,23 +80,30 @@ func (l *tsLang) Resolve(
 		// underlying ts_project (or equivalent). One attr for both npm
 		// packages and intra-repo project references.
 		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
+		globalResolved := resolveGlobalsToDeps(importData.Globals, cfg)
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
+		all = append(all, globalResolved.external...)
 		setOrDelete(r, "deps", all)
-		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
+		tsconfigTypes := append([]string{}, resolved.tsconfigTypes...)
+		tsconfigTypes = append(tsconfigTypes, globalResolved.tsconfigTypes...)
+		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 
 	case kindMatches(c, r.Kind(), KindTsTest):
 		// ts_test keeps the standard Bazel split: srcs are test entrypoints,
 		// deps are compile-time/import deps (including a generated sibling lib
 		// dep), and data remains runtime fixtures only.
 		testResolved := l.resolveImportsToDeps(c, importData.TestImports, from, ix, cfg)
+		testGlobalResolved := resolveGlobalsToDeps(importData.TestGlobals, cfg)
 		existing := r.AttrStrings("deps")
 		all := append([]string{}, existing...)
 		all = append(all, testResolved.external...)
 		all = append(all, testResolved.internal...)
+		all = append(all, testGlobalResolved.external...)
 		setOrDelete(r, "deps", all)
 		tsconfigTypes := append([]string{}, r.AttrStrings("tsconfig_types")...)
 		tsconfigTypes = append(tsconfigTypes, testResolved.tsconfigTypes...)
+		tsconfigTypes = append(tsconfigTypes, testGlobalResolved.tsconfigTypes...)
 		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 
 	case kindMatches(c, r.Kind(), KindJsBinary), kindMatches(c, r.Kind(), KindTsBinary):
@@ -105,11 +112,15 @@ func (l *tsLang) Resolve(
 		// entry_point, env, fixed_args, etc. are left alone. Same shape
 		// for both stock js_binary and the abstract ts_binary.
 		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
+		globalResolved := resolveGlobalsToDeps(importData.Globals, cfg)
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
+		all = append(all, globalResolved.external...)
 		setOrDelete(r, "data", all)
 		if kindMatches(c, r.Kind(), KindTsBinary) {
-			setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
+			tsconfigTypes := append([]string{}, resolved.tsconfigTypes...)
+			tsconfigTypes = append(tsconfigTypes, globalResolved.tsconfigTypes...)
+			setOrDelete(r, "tsconfig_types", tsconfigTypes)
 		}
 
 	case kindMatches(c, r.Kind(), KindBundlerConfig):
@@ -121,8 +132,10 @@ func (l *tsLang) Resolve(
 		// it. The asymmetry is intentional — the closure leaks bundler→lib
 		// but never lib→bundler.
 		resolved := l.resolveImportsToDeps(c, importData.Imports, from, ix, cfg)
+		globalResolved := resolveGlobalsToDeps(importData.Globals, cfg)
 		all := append([]string{}, resolved.external...)
 		all = append(all, resolved.internal...)
+		all = append(all, globalResolved.external...)
 		for _, imp := range importData.Imports {
 			if !strings.HasPrefix(imp.ImportPath, ".") {
 				continue
@@ -136,7 +149,9 @@ func (l *tsLang) Resolve(
 			break
 		}
 		setOrDelete(r, "deps", all)
-		setOrDelete(r, "tsconfig_types", resolved.tsconfigTypes)
+		tsconfigTypes := append([]string{}, resolved.tsconfigTypes...)
+		tsconfigTypes = append(tsconfigTypes, globalResolved.tsconfigTypes...)
+		setOrDelete(r, "tsconfig_types", tsconfigTypes)
 	}
 }
 
@@ -147,6 +162,25 @@ func setOrDelete(r *rule.Rule, attr string, values []string) {
 	} else {
 		r.DelAttr(attr)
 	}
+}
+
+func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps {
+	result := resolvedDeps{}
+	seen := make(map[string]bool)
+	for _, global := range globals {
+		dep := cfg.globalResolves[global.Name]
+		if dep == "" || seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		result.external = append(result.external, dep)
+		if typ := tsconfigTypeForGlobalDepLabel(dep); typ != "" {
+			result.tsconfigTypes = append(result.tsconfigTypes, typ)
+		}
+	}
+	result.external = deduplicateAndSort(result.external)
+	result.tsconfigTypes = deduplicateAndSort(result.tsconfigTypes)
+	return result
 }
 
 // resolveImportsToDeps categorizes each import into internal vs external.
@@ -423,6 +457,20 @@ func tsconfigTypePackageForDepLabel(dep string) string {
 		return "@types/" + typ
 	}
 	return ""
+}
+
+func tsconfigTypeForGlobalDepLabel(dep string) string {
+	if typ := tsconfigTypeFromTypesPath(dep); typ != "" {
+		return typ
+	}
+	name := dep
+	if idx := strings.LastIndex(name, ":"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	if idx := strings.LastIndex(name, "/"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	return name
 }
 
 func tsconfigTypeFromTypesPath(path string) string {

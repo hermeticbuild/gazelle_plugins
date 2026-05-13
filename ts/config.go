@@ -79,6 +79,10 @@ type tsConfig struct {
 	// every @types/* dependency.
 	tsconfigTypes []string
 
+	// globalResolves maps referenced globals (e.g. process, chrome) to the
+	// ambient type label that provides them.
+	globalResolves map[string]string
+
 	// bundlerConfigSpecs lists the bundler/tooling config files held out of
 	// the library compilation unit, each with its own emitted target name.
 	// Each spec maps a glob pattern to the Bazel target name to emit; matched
@@ -104,6 +108,7 @@ func newTsConfig() *tsConfig {
 		extensions:     append([]string(nil), defaultExtensions...),
 		npmLinkPattern: defaultNpmLinkPattern,
 		tsconfigTypes:  append([]string(nil), defaultTsconfigTypes...),
+		globalResolves: map[string]string{},
 	}
 }
 
@@ -116,6 +121,15 @@ func (c *tsConfig) clone() *tsConfig {
 	cp.extensions = append([]string(nil), c.extensions...)
 	cp.testData = append([]string(nil), c.testData...)
 	cp.tsconfigTypes = append([]string(nil), c.tsconfigTypes...)
+	cp.globalResolves = copyStringMap(c.globalResolves)
 	cp.bundlerConfigSpecs = append([]bundlerConfigSpec(nil), c.bundlerConfigSpecs...)
 	return &cp
+}
+
+func copyStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }

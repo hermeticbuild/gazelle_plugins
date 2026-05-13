@@ -52,6 +52,7 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	applyDirective(cfg, rule.Directive{Key: directiveExtension, Value: ".mts"})
 	applyDirective(cfg, rule.Directive{Key: directiveTestData, Value: "//:fixtures"})
 	applyDirective(cfg, rule.Directive{Key: directiveTsconfigTypes, Value: "node react"})
+	applyDirective(cfg, rule.Directive{Key: directiveResolveGlobal, Value: "process //:node_modules/@types/node"})
 
 	if !contains(cfg.testPatterns, "*.spec.ts") {
 		t.Errorf("testPatterns missing *.spec.ts: %v", cfg.testPatterns)
@@ -64,6 +65,9 @@ func TestApplyDirective_AppendDirectives(t *testing.T) {
 	}
 	if !reflect.DeepEqual(cfg.tsconfigTypes, []string{"node", "react"}) {
 		t.Errorf("tsconfigTypes = %v, want [node react]", cfg.tsconfigTypes)
+	}
+	if got, want := cfg.globalResolves["process"], "//:node_modules/@types/node"; got != want {
+		t.Errorf("globalResolves[process] = %q, want %q", got, want)
 	}
 
 	// Re-applying the same value should not duplicate.
@@ -94,11 +98,13 @@ func TestClone_Independent(t *testing.T) {
 	parent.libraryName = "lib"
 	parent.testPatterns = append(parent.testPatterns, "*.spec.ts")
 	parent.tsconfigTypes = append(parent.tsconfigTypes, "node")
+	parent.globalResolves["process"] = "//:node_modules/@types/node"
 
 	child := parent.clone()
 	child.libraryName = "src"
 	child.testPatterns = append(child.testPatterns, "**/__tests__/**")
 	child.tsconfigTypes = append(child.tsconfigTypes, "react")
+	child.globalResolves["chrome"] = "//:node_modules/@types/chrome"
 
 	if parent.libraryName != "lib" {
 		t.Errorf("parent libraryName mutated: %q", parent.libraryName)
@@ -108,6 +114,9 @@ func TestClone_Independent(t *testing.T) {
 	}
 	if contains(parent.tsconfigTypes, "react") {
 		t.Errorf("parent tsconfigTypes mutated: %v", parent.tsconfigTypes)
+	}
+	if _, ok := parent.globalResolves["chrome"]; ok {
+		t.Errorf("parent globalResolves mutated: %v", parent.globalResolves)
 	}
 }
 

@@ -1,6 +1,6 @@
 # import_extractor
 
-Rust staticlib that extracts import paths from TypeScript source files. Linked into the gazelle plugin's `go_library` via cgo and dispatched in-process — no subprocess, no IPC.
+Rust staticlib that extracts import paths and global references from TypeScript source files. Linked into the gazelle plugin's `go_library` via cgo and dispatched in-process — no subprocess, no IPC.
 
 ## Why a Rust crate
 
@@ -41,7 +41,7 @@ src/
 ├── lib.rs              # re-exports ffi, ts, wire modules
 ├── ffi.rs              # C ABI surface (gazelle_ts_ie_dispatch / gazelle_ts_ie_free)
 ├── wire.rs             # protobuf request/response dispatcher
-└── ts.rs               # oxc-based TypeScript import extractor
+└── ts.rs               # oxc-based TypeScript import/global extractor
 ```
 
 ## Build
