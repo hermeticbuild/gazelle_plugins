@@ -26,9 +26,18 @@ const (
 // Default test-file patterns and source-file extensions. Patterns are matched
 // against the file path relative to the package directory.
 var (
-	defaultTestPatterns = []string{"*.test.ts", "*.test.tsx", "tests/**", "test/**"}
-	defaultExtensions   = []string{".ts", ".tsx"}
-	defaultVisibility   = []string{"//visibility:public"}
+	defaultTestPatterns = []string{
+		"*.test.ts",
+		"*.test.tsx",
+		"tests/**",
+		"test/**",
+		"**/*.test.ts",
+		"**/*.test.tsx",
+		"**/*.spec.ts",
+		"**/*.spec.tsx",
+	}
+	defaultExtensions = []string{".ts", ".tsx"}
+	defaultVisibility = []string{"//visibility:public"}
 
 	// Only ambient type packages belong in compilerOptions.types. Module
 	// declaration packages such as @types/react or @types/lodash are still

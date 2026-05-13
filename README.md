@@ -229,7 +229,7 @@ All directives are placed in `BUILD.bazel` as `# gazelle:<key> <value>` and inhe
 | `ts_library_name` | package basename, e.g. `web` for `//apps/web` | Name of the generated library rule. |
 | `ts_test_name` | package basename + `_test`, e.g. `web_test` | Name of the generated test rule. |
 | `ts_visibility` | `//visibility:public` | Repeatable / space-separated list. |
-| `ts_test_pattern` | `*.test.ts`, `*.test.tsx`, `tests/**`, `test/**` | Repeatable; appended. |
+| `ts_test_pattern` | `*.test.ts`, `*.test.tsx`, `tests/**`, `test/**`, `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/*.spec.tsx` | Repeatable; appended. |
 | `ts_extension` | `.ts`, `.tsx` | Repeatable; appended. |
 | `ts_npm_link_pattern` | `//:node_modules/{pkg}` | Template; `{pkg}` is replaced with the resolved package name. |
 | `ts_test_data` | empty | Repeatable; appended to every test rule's `data`. |
