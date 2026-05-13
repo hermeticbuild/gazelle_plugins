@@ -212,7 +212,7 @@ The resolver recognizes the `types`, `node-addons`, `node`, `import`, `module-sy
 
 ### Recommendations
 
-- **Wire concrete macros via `# gazelle:map_kind`.** The plugin emits abstract kinds. Consumers wrap them in small macros that forward to their chosen implementation and set project-specific defaults. Without `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/data into a `filegroup` so the BUILD still loads, but nothing typechecks.
+- **Wire concrete macros via `# gazelle:map_kind`.** The plugin emits abstract kinds. Consumers wrap them in small macros that forward to their chosen implementation and set project-specific defaults. Without `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/deps/data into a `filegroup` so the BUILD still loads, but nothing typechecks.
 - **Use `package.json` `imports` for internal cross-package references and generated subpaths.** Configuring `"#packages/*": "./packages/*"` or `"#generated/foo/*/index.js": "./generated/foo/*"` lets source, TypeScript, Node.js, bundlers, and Gazelle agree on resolution. The plugin reads the same map and resolves to internal Bazel labels.
 - **In monorepos, set TypeScript project references in your wrapper macro.** Set `composite = True`, `declaration = True`, and `source_map = True` inside the macro behind `ts_library`; the wrapper runs once and applies to every emitted library.
 - **Pin one npm linker layout via `ts_npm_link_pattern`.** rules_js pnpm projects often use `//<dir>:node_modules/{pkg}`; the default `//:node_modules/{pkg}` is right for the simplest setup.
@@ -337,7 +337,8 @@ ts_bundler_config(
 
 ts_test(
     name = "app_test",
-    data = [":app", "//:node_modules/vitest", "index.test.ts"],
+    srcs = ["index.test.ts"],
+    deps = [":app", "//:node_modules/vitest"],
 )
 ```
 
@@ -372,10 +373,13 @@ Key behaviors:
 | Attr | Set by | Behavior |
 |---|---|---|
 | `name` | generate | non-empty required |
-| `data` | generate + resolve | mergeable; carries test sources, fixtures, npm packages, and sibling lib |
+| `srcs` | generate | mergeable; test entrypoints only |
+| `deps` | generate + resolve | mergeable; sibling library label plus imports from test files |
+| `data` | generate | mergeable; runtime-only fixtures from `ts_test_data` or `# keep` |
+| `tsconfig_types` | resolve | mergeable; inferred from resolved test-only `@types/*` deps allowlisted by `ts_tsconfig_types` |
 | anything else | _untouched_ | manual overrides survive across runs |
 
-No `entry_point` is emitted. `ts_test` assumes a multi-entry runner such as vitest, jest, or mocha. Wrappers mapped to single-entry runners such as stock `js_test` need to pick one from `data` themselves.
+No `entry_point` is emitted. `ts_test` assumes a multi-entry runner such as vitest, jest, or mocha. Wrappers mapped to single-entry runners such as stock `js_test` need to pick one from `srcs` themselves.
 
 #### `ts_binary` / `js_binary` (hand-written, data-managed)
 
@@ -408,7 +412,7 @@ Gazelle never generates either kind. It piggybacks on the user's existing rule, 
    - **Subpath import**: matches a key in the `package.json` `imports` map. `*` may appear anywhere in the `imports` key and target, so patterns like `"#generated/foo/*/index.js": "./generated/foo/*"` resolve through the RuleIndex to the generated package's actual label. Array fallback targets are tried in order.
    - **Node.js builtin**: resolves to `@types/node` and adds `node` to `tsconfig_types` because `node` is in the default `ts_tsconfig_types` allowlist.
    - **npm package**: resolves to `{npmLinkPattern}` with `{pkg}` replaced and auto-pairs `@types/<pkg>` if present in deps. The paired type package only adds to `tsconfig_types` when its unprefixed name is allowlisted by `ts_tsconfig_types`.
-3. Library rules collect resolved labels into `deps` and inferred type names into `tsconfig_types`. Test and bundler-config rules do the same into `data` / `deps`; bundler-config also gets `tsconfig_types`.
+3. Library, test, and bundler-config rules collect resolved labels into `deps` and inferred type names into `tsconfig_types`.
 4. `Imports()` registers each library's package path in the RuleIndex so other directories can look it up via `FindRulesByImportWithConfig`.
 
 ### Running With A Custom Macro (`map_kind`)
@@ -440,15 +444,11 @@ def myrepo_ts_library(name, srcs, **kwargs):
         **kwargs
     )
 
-def myrepo_ts_test(name, data, **kwargs):
-    # Pick the first .test.ts* from data for stock js_test. If you use a
-    # multi-entry vitest_test/jest_test macro, forward data directly instead.
-    entry = None
-    for d in data:
-        if d.endswith(".test.ts") or d.endswith(".test.tsx"):
-            entry = d
-            break
-    js_test(name = name, data = data, entry_point = entry, **kwargs)
+def myrepo_ts_test(name, srcs, deps = [], data = [], **kwargs):
+    # Stock js_test needs one entry_point; generated ts_test srcs are already
+    # the test entrypoints. Multi-entry runners can forward srcs/deps/data in
+    # the shape they expect.
+    js_test(name = name, data = srcs + deps + data, entry_point = srcs[0], **kwargs)
 
 def myrepo_ts_binary(name, **kwargs):
     # Gazelle keeps `data` in sync from the rule's entry_point/srcs imports;
@@ -459,7 +459,7 @@ def myrepo_bundler_config(name, srcs, **kwargs):
     ts_project(name = name, srcs = srcs, **kwargs)
 ```
 
-If you skip `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/data into a `filegroup` so the BUILD still loads, but it does not typecheck or run tests.
+If you skip `map_kind`, the fallback in `@gazelle_ts//ts:defs.bzl` collects srcs/deps/data into a `filegroup` so the BUILD still loads, but it does not typecheck or run tests.
 
 ### Migrating From Older Direct Emission
 

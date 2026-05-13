@@ -15,10 +15,5 @@ def ts_library(name, srcs, tsconfig_types = None, **kwargs):
         **kwargs
     )
 
-def ts_test(name, data, tsconfig_types = None, **kwargs):
-    entry = None
-    for d in data:
-        if d.endswith(".test.ts") or d.endswith(".test.tsx"):
-            entry = d
-            break
-    js_test(name = name, data = data, entry_point = entry, **kwargs)
+def ts_test(name, srcs, deps = [], data = [], tsconfig_types = None, **kwargs):
+    js_test(name = name, data = srcs + deps + data, entry_point = srcs[0], **kwargs)

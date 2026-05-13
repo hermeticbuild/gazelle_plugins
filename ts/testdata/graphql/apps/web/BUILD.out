@@ -15,15 +15,11 @@ ts_library(
 
 ts_test(
     name = "web_test",
-    data = [
-        "UserCard.test.ts",
+    srcs = ["UserCard.test.ts"],
+    tsconfig_types = ["node"],
+    deps = [
         ":web",
         "//:node_modules/@myrepo_generated/queries",
         "//:node_modules/@types/node",
-        "//:node_modules/@types/react",
-        "//:node_modules/react",
-        "//:node_modules/react-intl",
-        "//packages/core",
     ],
-    tsconfig_types = ["node"],
 )

@@ -16,15 +16,9 @@ myorg_ts_library(
 
 vitest_test(
     name = "web_test",
-    data = [
-        "app.test.ts",
+    srcs = ["app.test.ts"],
+    deps = [
         ":web",
-        "//:node_modules/@tanstack/react-query",
-        "//:node_modules/@types/react",
-        "//:node_modules/react",
         "//:node_modules/vitest",
-        "//packages/core",
-        "//packages/utils/math/deep",
-        "//packages/utils/string",
     ],
 )

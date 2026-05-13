@@ -273,15 +273,16 @@ func TestResolve_MappedTsTestPopulatesTsconfigTypes(t *testing.T) {
 		subpathImportsMap: map[string][]string{},
 	}
 	r := rule.NewRule("vitest_test", "test")
-	r.SetAttr("data", []string{"app.test.ts"})
+	r.SetAttr("srcs", []string{"app.test.ts"})
+	r.SetAttr("data", []string{"fixtures/sample.json"})
+	r.SetAttr("deps", []string{":web"})
 	lang.Resolve(
 		c,
 		nil,
 		nil,
 		r,
 		ImportData{
-			Imports:     []ImportStatement{{ImportPath: "node:path"}},
-			TestImports: []ImportStatement{{ImportPath: "vitest"}},
+			TestImports: []ImportStatement{{ImportPath: "node:path"}, {ImportPath: "vitest"}},
 		},
 		label.Label{Pkg: "apps/web", Name: "web_test"},
 	)
@@ -289,7 +290,13 @@ func TestResolve_MappedTsTestPopulatesTsconfigTypes(t *testing.T) {
 	if got, want := r.AttrStrings("tsconfig_types"), []string{"node", "vitest"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("tsconfig_types = %v, want %v", got, want)
 	}
-	if got, want := r.AttrStrings("data"), []string{"//:node_modules/@types/node", "//:node_modules/@types/vitest", "app.test.ts"}; !reflect.DeepEqual(got, want) {
+	if got, want := r.AttrStrings("srcs"), []string{"app.test.ts"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("srcs = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("deps"), []string{"//:node_modules/@types/node", "//:node_modules/@types/vitest", ":web"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("deps = %v, want %v", got, want)
+	}
+	if got, want := r.AttrStrings("data"), []string{"fixtures/sample.json"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("data = %v, want %v", got, want)
 	}
 }

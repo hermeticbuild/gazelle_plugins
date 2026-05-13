@@ -4,18 +4,15 @@ load("//tools:ts.bzl", "ts_library", "ts_test")
 # from imports because it's read at runtime via fs.readFile.
 ts_test(
     name = "web_test",
+    srcs = ["UserList.test.ts"],
     data = [
-        "UserList.test.ts",
         "users.json",  # keep
-        ":web",
-        "//:node_modules/@types/node",
-        "//:node_modules/@types/react",
-        "//:node_modules/react",
-        "//:node_modules/react-intl",
-        "//packages/core",
-        "//packages/utils",
     ],
     tsconfig_types = ["node"],
+    deps = [
+        ":web",
+        "//:node_modules/@types/node",
+    ],
 )
 
 ts_library(
