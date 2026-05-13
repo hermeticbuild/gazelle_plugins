@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -163,15 +164,20 @@ func (l *tsLang) resolveImportsToDeps(
 	seen := make(map[string]bool)
 
 	for _, imp := range imports {
-		if seen[imp.ImportPath] {
+		path := imp.ImportPath
+		seenKey := path
+		if strings.HasPrefix(path, ".") {
+			seenKey = imp.SourceFile + "\x00" + path
+		}
+		if seen[seenKey] {
 			continue
 		}
-		seen[imp.ImportPath] = true
+		seen[seenKey] = true
 
-		path := imp.ImportPath
-
-		// Relative imports stay within the package; nothing to add.
 		if strings.HasPrefix(path, ".") {
+			if dep := l.resolveRelativeImport(c, imp, from, ix); dep != "" {
+				result.internal = append(result.internal, dep)
+			}
 			continue
 		}
 
@@ -228,6 +234,22 @@ func (l *tsLang) resolveImportsToDeps(
 	}
 	result.tsconfigTypes = deduplicateAndSort(result.tsconfigTypes)
 	return result
+}
+
+func (l *tsLang) resolveRelativeImport(c *config.Config, imp ImportStatement, from label.Label, ix *resolve.RuleIndex) string {
+	if ix == nil || imp.SourceFile == "" {
+		return ""
+	}
+	sourceDir := filepath.Dir(imp.SourceFile)
+	targetPath := filepath.Clean(filepath.Join(sourceDir, imp.ImportPath))
+	if filepath.IsAbs(targetPath) {
+		if rel, err := filepath.Rel(c.RepoRoot, targetPath); err == nil {
+			targetPath = rel
+		}
+	}
+	targetPath = filepath.ToSlash(targetPath)
+	targetPath = strings.TrimPrefix(targetPath, "./")
+	return resolveWorkspacePathToInternalLabel(c, targetPath, from, ix)
 }
 
 func (d *resolvedDeps) addNpmDep(cfg *tsConfig, pkgName string) {
@@ -306,35 +328,43 @@ func (l *tsLang) resolveSubpathTarget(target, capture string, from label.Label, 
 	// Otherwise treat target as a path within the repo and look up the
 	// matching ts_project in the rule index.
 	resolvedPath := strings.TrimPrefix(target, "./")
-	for _, ext := range []string{".js", ".ts", ".tsx", ".jsx"} {
-		resolvedPath = strings.TrimSuffix(resolvedPath, ext)
+	if dep := resolveWorkspacePathToInternalLabel(nil, resolvedPath, from, ix); dep != "" {
+		return dep, false, true
 	}
-	parts := strings.Split(resolvedPath, "/")
+	return "", false, false
+}
 
-	for i := len(parts); i > 0; i-- {
+func resolveWorkspacePathToInternalLabel(c *config.Config, targetPath string, from label.Label, ix *resolve.RuleIndex) string {
+	targetPath = strings.TrimPrefix(filepath.ToSlash(targetPath), "./")
+	for _, ext := range []string{".js", ".ts", ".tsx", ".jsx"} {
+		targetPath = strings.TrimSuffix(targetPath, ext)
+	}
+	parts := strings.Split(targetPath, "/")
+
+	for i := len(parts); i >= 0; i-- {
 		testPath := strings.Join(parts[:i], "/")
 		if testPath == from.Pkg {
-			return "", false, true
+			return ""
 		}
 		for _, imp := range []string{testPath, testPath + "/*"} {
-			found := ix.FindRulesByImportWithConfig(nil, resolve.ImportSpec{Lang: languageName, Imp: imp}, languageName)
+			found := ix.FindRulesByImportWithConfig(c, resolve.ImportSpec{Lang: languageName, Imp: imp}, languageName)
 			sort.Slice(found, func(i, j int) bool {
 				return len(found[i].Label.Pkg) > len(found[j].Label.Pkg)
 			})
 			for _, candidate := range found {
 				if candidate.Label.Pkg == from.Pkg {
-					return "", false, true
+					return ""
 				}
 				// Use the actual rule label from the index — it carries the
 				// resolved rule name, which may not match the directory basename
 				// (e.g. ts_library_name = "lib" → //packages/foo:lib, not
 				// //packages/foo).
-				return candidate.Label.Rel(from.Repo, from.Pkg).String(), false, true
+				return candidate.Label.Rel(from.Repo, from.Pkg).String()
 			}
 		}
 	}
 
-	return "", false, false
+	return ""
 }
 
 // matchNpmPackage returns the package name (handling `@scope/name` correctly)

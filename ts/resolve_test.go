@@ -406,6 +406,73 @@ func TestResolveSubpathImport_PathTargetUsesRuleIndex(t *testing.T) {
 	}
 }
 
+func TestResolveImportsToDeps_RelativeParentPackageImportUsesRuleIndex(t *testing.T) {
+	lang := &tsLang{
+		packageDeps:       map[string]bool{},
+		subpathImportsMap: map[string][]string{},
+	}
+	c := config.New()
+	c.RepoRoot = "/repo"
+	c.Exts[languageName] = newTsConfig()
+	ix := gazelleresolve.NewRuleIndex(func(r *rule.Rule, pkgRel string) gazelleresolve.Resolver {
+		if r.Kind() == KindTsLibrary {
+			return lang
+		}
+		return nil
+	})
+	ix.AddRule(c, rule.NewRule(KindTsLibrary, "lib"), &rule.File{Pkg: "pkg"})
+	ix.Finish()
+
+	got := lang.resolveImportsToDeps(
+		c,
+		[]ImportStatement{{
+			ImportPath: "../src",
+			SourceFile: "/repo/pkg/tests/foo.spec.ts",
+		}},
+		label.Label{Pkg: "pkg/tests", Name: "tests_test"},
+		ix,
+		newTsConfig(),
+	)
+
+	if !reflect.DeepEqual(got.internal, []string{"//pkg:lib"}) {
+		t.Errorf("internal deps = %v, want [//pkg:lib]", got.internal)
+	}
+}
+
+func TestResolveImportsToDeps_RelativeSamePackageImportIgnored(t *testing.T) {
+	lang := &tsLang{
+		packageDeps:       map[string]bool{},
+		subpathImportsMap: map[string][]string{},
+	}
+	c := config.New()
+	c.RepoRoot = "/repo"
+	c.Exts[languageName] = newTsConfig()
+	ix := gazelleresolve.NewRuleIndex(func(r *rule.Rule, pkgRel string) gazelleresolve.Resolver {
+		if r.Kind() == KindTsLibrary {
+			return lang
+		}
+		return nil
+	})
+	ix.AddRule(c, rule.NewRule(KindTsLibrary, "tests"), &rule.File{Pkg: "pkg/tests"})
+	ix.AddRule(c, rule.NewRule(KindTsLibrary, "lib"), &rule.File{Pkg: "pkg"})
+	ix.Finish()
+
+	got := lang.resolveImportsToDeps(
+		c,
+		[]ImportStatement{{
+			ImportPath: "./helper",
+			SourceFile: "/repo/pkg/tests/foo.spec.ts",
+		}},
+		label.Label{Pkg: "pkg/tests", Name: "tests_test"},
+		ix,
+		newTsConfig(),
+	)
+
+	if len(got.internal) != 0 {
+		t.Errorf("internal deps = %v, want empty same-package import", got.internal)
+	}
+}
+
 func TestResolveSubpathImport_LongestIndexedPackageWins(t *testing.T) {
 	lang := &tsLang{
 		packageDeps: map[string]bool{},

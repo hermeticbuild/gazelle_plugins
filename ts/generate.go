@@ -286,23 +286,11 @@ func isTestFile(name string, cfg *tsConfig) bool {
 	return false
 }
 
-// matchTestPattern is a small glob matcher supporting `*` (path segment) and
-// `**` (path-spanning). We avoid filepath.Match because it doesn't support `**`.
+// matchTestPattern matches the same doublestar glob syntax used by the other
+// path-pattern directives. Invalid in-progress patterns simply don't match.
 func matchTestPattern(pattern, name string) bool {
-	// Fast path for prefix-style patterns ("tests/**", "test/**").
-	if strings.HasSuffix(pattern, "/**") {
-		prefix := strings.TrimSuffix(pattern, "/**")
-		return name == prefix || strings.HasPrefix(name, prefix+"/")
-	}
-	// `*.test.ts` style: substring match suffices because gazelle hands us
-	// directory-local file names without paths.
-	if strings.HasPrefix(pattern, "*") {
-		return strings.HasSuffix(name, strings.TrimPrefix(pattern, "*"))
-	}
-	if strings.HasSuffix(pattern, "*") {
-		return strings.HasPrefix(name, strings.TrimSuffix(pattern, "*"))
-	}
-	return name == pattern
+	ok, err := doublestar.Match(pattern, name)
+	return err == nil && ok
 }
 
 // partitionedSrcs is the result of slicing a directory's TS files across the
