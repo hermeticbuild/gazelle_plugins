@@ -67,6 +67,8 @@ func TestMatchTestPattern(t *testing.T) {
 		{"tests/**", "tests/foo.ts", true},
 		{"tests/**", "tests/sub/foo.ts", true},
 		{"tests/**", "src/tests/foo.ts", false},
+		{"**/*.spec.ts", "foo.spec.ts", true},
+		{"**/*.spec.ts", "nested/foo.spec.ts", true},
 		{"foo.ts", "foo.ts", true},
 		{"foo.ts", "bar.ts", false},
 	}

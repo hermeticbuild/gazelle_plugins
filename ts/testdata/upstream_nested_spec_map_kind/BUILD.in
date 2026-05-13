@@ -1,0 +1,3 @@
+# gazelle:map_kind ts_library my_ts_library //:defs.bzl
+# gazelle:map_kind ts_test my_ts_test //:defs.bzl
+# gazelle:ts_test_pattern **/*.spec.ts
