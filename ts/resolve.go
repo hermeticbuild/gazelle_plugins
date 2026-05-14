@@ -481,10 +481,8 @@ func tsconfigTypeForGlobalDepLabel(dep string, cfg *tsConfig) string {
 	if typ := tsconfigTypeFromTypesPath(dep); typ != "" {
 		return typ
 	}
-	// Scoped npm packages need their full package name (or a reference file),
-	// so deriving just the target basename would produce invalid type names.
 	if pkg, ok := npmPackageFromLabel(cfg, dep); ok && strings.HasPrefix(pkg, "@") {
-		return ""
+		return pkg
 	}
 	name := dep
 	if idx := strings.LastIndex(name, ":"); idx >= 0 {

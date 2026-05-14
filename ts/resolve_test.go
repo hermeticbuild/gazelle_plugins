@@ -120,8 +120,8 @@ func TestTsconfigTypeForGlobalDepLabel(t *testing.T) {
 		{dep: "@npm//@types/google.accounts", want: "google.accounts"},
 		{dep: "//app/frontend/@types/app-env", want: "app-env"},
 		{dep: "//types:custom-global-env", want: "custom-global-env"},
-		{dep: "//:node_modules/@cloudflare/workers-types", cfg: defaultCfg, want: ""},
-		{dep: "//:my_npm/@cloudflare/workers-types", cfg: customCfg, want: ""},
+		{dep: "//:node_modules/@cloudflare/workers-types", cfg: defaultCfg, want: "@cloudflare/workers-types"},
+		{dep: "//:my_npm/@cloudflare/workers-types", cfg: customCfg, want: "@cloudflare/workers-types"},
 	}
 	for _, c := range cases {
 		if got := tsconfigTypeForGlobalDepLabel(c.dep, c.cfg); got != c.want {
@@ -181,8 +181,46 @@ func TestResolveGlobalsToDeps(t *testing.T) {
 	if want := []string{"//:node_modules/@cloudflare/workers-types", "//:node_modules/@types/bar", "//:node_modules/@types/chrome", "//:node_modules/@types/gapi", "//:node_modules/@types/google.accounts", "//:node_modules/@types/google.picker", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
 		t.Errorf("external = %v, want %v", got.external, want)
 	}
-	if want := []string{"app-env", "bar", "chrome", "gapi", "google.accounts", "google.picker", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
+	if want := []string{"@cloudflare/workers-types", "app-env", "bar", "chrome", "gapi", "google.accounts", "google.picker", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
 		t.Errorf("tsconfigTypes = %v, want %v", got.tsconfigTypes, want)
+	}
+}
+
+func TestResolve_GlobalScopedNpmTypePackageAddsTsconfigTypes(t *testing.T) {
+	cfg := newTsConfig()
+	cfg.globalResolves["R2Bucket"] = "//:node_modules/@cloudflare/workers-types"
+
+	c := config.New()
+	c.Exts[languageName] = cfg
+	resolveConfigurer := &gazelleresolve.Configurer{}
+	resolveConfigurer.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "", c)
+	resolveConfigurer.Configure(c, "", nil)
+
+	lang := &tsLang{
+		packageDeps:       map[string]bool{"@cloudflare/workers-types": true},
+		subpathImportsMap: map[string][]string{},
+	}
+	r := rule.NewRule(KindTsLibrary, "worker")
+
+	lang.Resolve(
+		c,
+		nil,
+		nil,
+		r,
+		ImportData{
+			Globals: []GlobalReference{{Name: "R2Bucket"}},
+		},
+		label.Label{Pkg: "apps/worker", Name: "worker"},
+	)
+
+	wantDeps := []string{"//:node_modules/@cloudflare/workers-types"}
+	if got := r.AttrStrings("deps"); !reflect.DeepEqual(got, wantDeps) {
+		t.Errorf("deps = %v, want %v", got, wantDeps)
+	}
+
+	wantTypes := []string{"@cloudflare/workers-types"}
+	if got := r.AttrStrings("tsconfig_types"); !reflect.DeepEqual(got, wantTypes) {
+		t.Errorf("tsconfig_types = %v, want %v", got, wantTypes)
 	}
 }
 
@@ -327,7 +365,7 @@ func TestResolve_TsLibraryUsesResolvedGlobals(t *testing.T) {
 	if got := r.AttrStrings("deps"); !reflect.DeepEqual(got, wantDeps) {
 		t.Errorf("deps = %v, want %v", got, wantDeps)
 	}
-	wantTypes := []string{"app-env", "chrome", "google.accounts", "import-meta-env", "node"}
+	wantTypes := []string{"@cloudflare/workers-types", "app-env", "chrome", "google.accounts", "import-meta-env", "node"}
 	if got := r.AttrStrings("tsconfig_types"); !reflect.DeepEqual(got, wantTypes) {
 		t.Errorf("tsconfig_types = %v, want %v", got, wantTypes)
 	}
