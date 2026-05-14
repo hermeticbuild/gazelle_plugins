@@ -158,6 +158,7 @@ func TestResolveGlobalsToDeps(t *testing.T) {
 	cfg.globalResolves["google.picker"] = "//:node_modules/@types/google.picker"
 	cfg.globalResolves["gapi"] = "//:node_modules/@types/gapi"
 	cfg.globalResolves["import.meta.env"] = "//app/frontend/@types/app-env"
+	cfg.globalResolves["Bar"] = "//:node_modules/@types/bar"
 	cfg.globalResolves["R2Bucket"] = "//:node_modules/@cloudflare/workers-types"
 
 	got := resolveGlobalsToDeps(
@@ -168,17 +169,19 @@ func TestResolveGlobalsToDeps(t *testing.T) {
 			{Name: "google.accounts"},
 			{Name: "google.picker.DocumentObject"},
 			{Name: "window.gapi.load"},
+			{Name: "gapi.load"},
 			{Name: "window.unconfigured.load"},
 			{Name: "import.meta.env"},
+			{Name: "Bar"},
 			{Name: "R2Bucket"},
 		},
 		cfg,
 	)
 
-	if want := []string{"//:node_modules/@cloudflare/workers-types", "//:node_modules/@types/chrome", "//:node_modules/@types/gapi", "//:node_modules/@types/google.accounts", "//:node_modules/@types/google.picker", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
+	if want := []string{"//:node_modules/@cloudflare/workers-types", "//:node_modules/@types/bar", "//:node_modules/@types/chrome", "//:node_modules/@types/gapi", "//:node_modules/@types/google.accounts", "//:node_modules/@types/google.picker", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
 		t.Errorf("external = %v, want %v", got.external, want)
 	}
-	if want := []string{"app-env", "chrome", "gapi", "google.accounts", "google.picker", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
+	if want := []string{"app-env", "bar", "chrome", "gapi", "google.accounts", "google.picker", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
 		t.Errorf("tsconfigTypes = %v, want %v", got.tsconfigTypes, want)
 	}
 }
