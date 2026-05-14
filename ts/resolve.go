@@ -184,6 +184,16 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 }
 
 func resolveGlobalToDep(name string, cfg *tsConfig) string {
+	if dep := resolveConfiguredGlobalToDep(name, cfg); dep != "" {
+		return dep
+	}
+	if strings.HasPrefix(name, "window.") {
+		return resolveConfiguredGlobalToDep(strings.TrimPrefix(name, "window."), cfg)
+	}
+	return ""
+}
+
+func resolveConfiguredGlobalToDep(name string, cfg *tsConfig) string {
 	bestLen := -1
 	bestDep := ""
 	for global, dep := range cfg.globalResolves {

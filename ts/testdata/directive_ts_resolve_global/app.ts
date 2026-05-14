@@ -1,5 +1,6 @@
 process.env.NODE_ENV;
 chrome.runtime.sendMessage("hello");
+window.gapi.load("picker", () => {});
 import.meta.env.VITE_FOO;
 appEnv.VITE_FOO;
 
