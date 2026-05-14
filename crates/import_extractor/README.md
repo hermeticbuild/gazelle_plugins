@@ -1,6 +1,9 @@
 # import_extractor
 
-Rust staticlib that extracts import paths and global references from TypeScript source files. Linked into the gazelle plugin's `go_library` via cgo and dispatched in-process — no subprocess, no IPC.
+Rust staticlib that extracts import paths, static CommonJS `require("...")`
+calls, and global references from TypeScript source files. Linked into the
+gazelle plugin's `go_library` via cgo and dispatched in-process — no subprocess,
+no IPC.
 
 ## Why a Rust crate
 

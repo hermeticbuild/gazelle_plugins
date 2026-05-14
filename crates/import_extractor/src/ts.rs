@@ -9,6 +9,7 @@
 //   - export-from:            export { x } from 'module'
 //   - export-all:             export * from 'module'
 //   - dynamic import:         import('module')  (oxc models this as ImportExpression)
+//   - CommonJS require:       require('module')
 //   - type-only imports:      import type { X } from 'module' (still extracted -- needed for type checking)
 //
 // The extracted paths are raw module specifiers (e.g., "react", "myorg/frontend/common").
@@ -147,6 +148,21 @@ impl<'s> ImportVisitor<'s> {
         true
     }
 
+    fn add_static_require_call(&mut self, expr: &CallExpression<'_>) {
+        let Expression::Identifier(callee) = &expr.callee else {
+            return;
+        };
+        if callee.name.as_str() != "require" || !callee.is_global_reference(self.scoping) {
+            return;
+        }
+        let Some(Expression::StringLiteral(lit)) =
+            expr.arguments.first().and_then(Argument::as_expression)
+        else {
+            return;
+        };
+        self.add(lit.value.as_str());
+    }
+
     fn into_references(self) -> ExtractedReferences {
         ExtractedReferences {
             imports: self.imports,
@@ -234,6 +250,12 @@ impl<'a> Visit<'a> for ImportVisitor<'_> {
             self.add(lit.value.as_str());
         }
         walk::walk_import_expression(self, expr);
+    }
+
+    // require('module') -- only static, unshadowed string-literal CommonJS calls.
+    fn visit_call_expression(&mut self, expr: &CallExpression<'a>) {
+        self.add_static_require_call(expr);
+        walk::walk_call_expression(self, expr);
     }
 
     // import('module').Type -- oxc models inline type imports as TSImportType
@@ -697,16 +719,46 @@ mod tests {
     }
 
     #[test]
-    fn require_not_extracted() {
+    fn require_calls_extracted() {
         let imports = extract_imports(
             "test.ts",
             r#"
+            import { hydrateRoot } from 'react-dom';
             const React = require('react');
             require('side-effect');
-            import { useState } from 'react-dom';
+            module.exports = require('@scope/pkg/subpath');
+            exports.fp = require('lodash/fp');
         "#,
         );
-        assert_eq!(imports, vec!["react-dom"]);
+        assert_eq!(
+            imports,
+            vec![
+                "react-dom",
+                "react",
+                "side-effect",
+                "@scope/pkg/subpath",
+                "lodash/fp"
+            ]
+        );
+    }
+
+    #[test]
+    fn dynamic_and_shadowed_require_not_extracted() {
+        let imports = extract_imports(
+            "test.ts",
+            r#"
+            const packageName = 'react';
+            require(packageName);
+            require(`side-effect`);
+            require.resolve('resolve-only');
+
+            function local(require: (path: string) => unknown) {
+                require('shadowed');
+            }
+            const arrow = (require: (path: string) => unknown) => require('also-shadowed');
+        "#,
+        );
+        assert_eq!(imports, Vec::<String>::new());
     }
 
     #[test]
