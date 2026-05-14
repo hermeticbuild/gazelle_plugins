@@ -17,7 +17,7 @@ lto = "thin"
 
 [workspace.dependencies]
 # TypeScript parsing (oxc)
-oxc = { version = "0.127", features = ["ast_visit"] }
+oxc = { version = "0.127", features = ["ast_visit", "semantic"] }
 oxc_allocator = "0.127"
 oxc_ast = "0.127"
 oxc_parser = "0.127"

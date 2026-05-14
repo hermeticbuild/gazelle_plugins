@@ -4,6 +4,8 @@ window.gapi.load("picker", () => {});
 import.meta.env.VITE_FOO;
 appEnv.VITE_FOO;
 
+export const foo: Bar = {};
+
 export type PickedFile = google.picker.DocumentObject;
 
 export interface Env {

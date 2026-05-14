@@ -168,7 +168,7 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 	result := resolvedDeps{}
 	seen := make(map[string]bool)
 	for _, global := range globals {
-		dep := resolveGlobalToDep(global.Name, cfg)
+		dep := resolveConfiguredGlobalToDep(global.Name, cfg)
 		if dep == "" || seen[dep] {
 			continue
 		}
@@ -181,16 +181,6 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 	result.external = deduplicateAndSort(result.external)
 	result.tsconfigTypes = deduplicateAndSort(result.tsconfigTypes)
 	return result
-}
-
-func resolveGlobalToDep(name string, cfg *tsConfig) string {
-	if dep := resolveConfiguredGlobalToDep(name, cfg); dep != "" {
-		return dep
-	}
-	if strings.HasPrefix(name, "window.") {
-		return resolveConfiguredGlobalToDep(strings.TrimPrefix(name, "window."), cfg)
-	}
-	return ""
 }
 
 func resolveConfiguredGlobalToDep(name string, cfg *tsConfig) string {

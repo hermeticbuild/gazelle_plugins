@@ -15,6 +15,7 @@
 // Resolution to Bazel labels happens on the Go side in resolve.go.
 
 use oxc::ast_visit::{Visit, walk};
+use oxc::semantic::{IsGlobalReference, Scoping, SemanticBuilder};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_parser::Parser;
@@ -60,22 +61,26 @@ pub fn extract_references(path: &str, source_text: &str) -> ExtractedReferences 
 
     let ret = Parser::new(&allocator, source_text, source_type).parse();
 
-    let mut visitor = ImportVisitor::new();
+    let semantic = SemanticBuilder::new().build(&ret.program).semantic;
+
+    let mut visitor = ImportVisitor::new(semantic.scoping());
     visitor.visit_program(&ret.program);
     visitor.into_references()
 }
 
 /// AST visitor that collects import paths and global references from TypeScript source code.
-struct ImportVisitor {
+struct ImportVisitor<'s> {
+    scoping: &'s Scoping,
     imports: Vec<String>,
     globals: Vec<String>,
     seen_imports: HashSet<String>,
     seen_globals: HashSet<String>,
 }
 
-impl ImportVisitor {
-    fn new() -> Self {
+impl<'s> ImportVisitor<'s> {
+    fn new(scoping: &'s Scoping) -> Self {
         Self {
+            scoping,
             imports: Vec::new(),
             globals: Vec::new(),
             seen_imports: HashSet::new(),
@@ -108,16 +113,37 @@ impl ImportVisitor {
         }
     }
 
+    fn add_global_chain_including_first<'b>(&mut self, parts: impl IntoIterator<Item = &'b str>) {
+        let mut chain = String::new();
+        for (idx, part) in parts.into_iter().enumerate() {
+            if idx > 0 {
+                chain.push('.');
+            }
+            chain.push_str(part);
+            self.add_global(&chain);
+        }
+    }
+
     fn add_static_member_globals(&mut self, expr: &StaticMemberExpression<'_>) -> bool {
+        if !expression_root_is_global(&expr.object, self.scoping) {
+            return false;
+        }
         let Some(parts) = expression_chain(&expr.object) else {
             return false;
         };
-        self.add_global_chain(
-            parts
-                .iter()
-                .chain([expr.property.name.as_str()].iter())
-                .copied(),
-        );
+        let parts = parts
+            .iter()
+            .chain([expr.property.name.as_str()].iter())
+            .copied()
+            .collect::<Vec<_>>();
+        self.add_global_chain(parts.iter().copied());
+        if parts
+            .first()
+            .is_some_and(|root| is_global_object_name(root))
+            && parts.len() > 1
+        {
+            self.add_global_chain_including_first(parts.iter().skip(1).copied());
+        }
         true
     }
 
@@ -126,6 +152,21 @@ impl ImportVisitor {
             imports: self.imports,
             globals: self.globals,
         }
+    }
+}
+
+fn is_global_object_name(name: &str) -> bool {
+    matches!(name, "window" | "global" | "globalThis")
+}
+
+fn expression_root_is_global(expr: &Expression<'_>, scoping: &Scoping) -> bool {
+    match expr {
+        Expression::Identifier(ident) => ident.is_global_reference(scoping),
+        Expression::MetaProperty(_) => true,
+        Expression::StaticMemberExpression(member) => {
+            expression_root_is_global(&member.object, scoping)
+        }
+        _ => false,
     }
 }
 
@@ -144,6 +185,14 @@ fn expression_chain<'a>(expr: &'a Expression<'a>) -> Option<Vec<&'a str>> {
     }
 }
 
+fn type_name_root_is_global(name: &TSTypeName<'_>, scoping: &Scoping) -> bool {
+    match name {
+        TSTypeName::IdentifierReference(ident) => ident.is_global_reference(scoping),
+        TSTypeName::QualifiedName(qualified) => type_name_root_is_global(&qualified.left, scoping),
+        TSTypeName::ThisExpression(_) => false,
+    }
+}
+
 fn type_name_chain<'a>(name: &'a TSTypeName<'a>) -> Option<Vec<&'a str>> {
     match name {
         TSTypeName::IdentifierReference(ident) => Some(vec![ident.name.as_str()]),
@@ -158,7 +207,7 @@ fn qualified_name_chain<'a>(name: &'a TSQualifiedName<'a>) -> Option<Vec<&'a str
     Some(parts)
 }
 
-impl<'a> Visit<'a> for ImportVisitor {
+impl<'a> Visit<'a> for ImportVisitor<'_> {
     // import ... from 'module' | import 'module'
     fn visit_import_declaration(&mut self, decl: &ImportDeclaration<'a>) {
         self.add(decl.source.value.as_str());
@@ -194,7 +243,9 @@ impl<'a> Visit<'a> for ImportVisitor {
     }
 
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'a>) {
-        self.add_global(ident.name.as_str());
+        if ident.is_global_reference(self.scoping) {
+            self.add_global(ident.name.as_str());
+        }
         walk::walk_identifier_reference(self, ident);
     }
 
@@ -206,6 +257,10 @@ impl<'a> Visit<'a> for ImportVisitor {
     }
 
     fn visit_ts_qualified_name(&mut self, name: &TSQualifiedName<'a>) {
+        if !type_name_root_is_global(&name.left, self.scoping) {
+            walk::walk_ts_qualified_name(self, name);
+            return;
+        }
         let Some(parts) = qualified_name_chain(name) else {
             walk::walk_ts_qualified_name(self, name);
             return;
@@ -310,6 +365,82 @@ mod tests {
             refs.globals,
             vec!["google.picker", "google.picker.DocumentObject"]
         );
+    }
+
+    #[test]
+    fn bare_type_annotations_are_extracted_as_globals() {
+        let refs = extract_references("test.ts", "export const foo: Bar = {};");
+        assert_eq!(refs.globals, vec!["Bar"]);
+    }
+
+    #[test]
+    fn local_values_do_not_emit_global_chains() {
+        let refs = extract_references(
+            "test.ts",
+            r#"
+            import chrome from 'chrome';
+
+            const process = { env: { NODE_ENV: 'test' } };
+            const window = { gapi: { load() {} } };
+
+            process.env.NODE_ENV;
+            chrome.runtime.sendMessage('hi');
+            window.gapi.load('picker', () => {});
+            "#,
+        );
+        assert_eq!(refs.imports, vec!["chrome"]);
+        assert_eq!(refs.globals, Vec::<String>::new());
+    }
+
+    #[test]
+    fn global_object_members_emit_projected_global_chains() {
+        let refs = extract_references(
+            "test.ts",
+            r#"
+            window.gapi;
+            window.gapi.load('picker', () => {});
+            global.process.env.NODE_ENV;
+            globalThis.chrome.runtime.sendMessage('hi');
+            "#,
+        );
+        assert_eq!(
+            refs.globals,
+            vec![
+                "window.gapi",
+                "gapi",
+                "window.gapi.load",
+                "gapi.load",
+                "global.process",
+                "global.process.env",
+                "global.process.env.NODE_ENV",
+                "process",
+                "process.env",
+                "process.env.NODE_ENV",
+                "globalThis.chrome",
+                "globalThis.chrome.runtime",
+                "globalThis.chrome.runtime.sendMessage",
+                "chrome",
+                "chrome.runtime",
+                "chrome.runtime.sendMessage",
+            ]
+        );
+    }
+
+    #[test]
+    fn local_namespaces_do_not_emit_qualified_global_chains() {
+        let refs = extract_references(
+            "test.ts",
+            r#"
+            namespace google {
+                export namespace picker {
+                    export type DocumentObject = {};
+                }
+            }
+
+            export type PickedFile = google.picker.DocumentObject;
+            "#,
+        );
+        assert_eq!(refs.globals, Vec::<String>::new());
     }
 
     #[test]
