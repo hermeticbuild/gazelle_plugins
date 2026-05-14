@@ -2,6 +2,9 @@ load("@gazelle_ts//ts:defs.bzl", "ts_library")
 
 # gazelle:ts_resolve_global process //:node_modules/@types/node
 # gazelle:ts_resolve_global chrome //:node_modules/@types/chrome
+# gazelle:ts_resolve_global gapi //:node_modules/@types/gapi
+# gazelle:ts_resolve_global google //:node_modules/@types/google
+# gazelle:ts_resolve_global google.picker //:node_modules/@types/google.picker
 # gazelle:ts_resolve_global import.meta.env //app/frontend/@types/import-meta-env
 # gazelle:ts_resolve_global appEnv //app/frontend/@types/app-env
 # gazelle:ts_resolve_global R2Bucket //:node_modules/@cloudflare/workers-types
@@ -14,6 +17,8 @@ ts_library(
     tsconfig_types = [
         "app-env",
         "chrome",
+        "gapi",
+        "google.picker",
         "import-meta-env",
         "node",
     ],
@@ -21,6 +26,8 @@ ts_library(
     deps = [
         "//:node_modules/@cloudflare/workers-types",
         "//:node_modules/@types/chrome",
+        "//:node_modules/@types/gapi",
+        "//:node_modules/@types/google.picker",
         "//:node_modules/@types/node",
         "//app/frontend/@types/app-env",
         "//app/frontend/@types/import-meta-env",

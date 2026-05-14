@@ -168,7 +168,7 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 	result := resolvedDeps{}
 	seen := make(map[string]bool)
 	for _, global := range globals {
-		dep := cfg.globalResolves[global.Name]
+		dep := resolveGlobalToDep(global.Name, cfg)
 		if dep == "" || seen[dep] {
 			continue
 		}
@@ -181,6 +181,34 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 	result.external = deduplicateAndSort(result.external)
 	result.tsconfigTypes = deduplicateAndSort(result.tsconfigTypes)
 	return result
+}
+
+func resolveGlobalToDep(name string, cfg *tsConfig) string {
+	if dep := resolveConfiguredGlobalToDep(name, cfg); dep != "" {
+		return dep
+	}
+	if strings.HasPrefix(name, "window.") {
+		return resolveConfiguredGlobalToDep(strings.TrimPrefix(name, "window."), cfg)
+	}
+	return ""
+}
+
+func resolveConfiguredGlobalToDep(name string, cfg *tsConfig) string {
+	bestLen := -1
+	bestDep := ""
+	for global, dep := range cfg.globalResolves {
+		if dep == "" {
+			continue
+		}
+		if name != global && !strings.HasPrefix(name, global+".") {
+			continue
+		}
+		if len(global) > bestLen {
+			bestLen = len(global)
+			bestDep = dep
+		}
+	}
+	return bestDep
 }
 
 // resolveImportsToDeps categorizes each import into internal vs external.
