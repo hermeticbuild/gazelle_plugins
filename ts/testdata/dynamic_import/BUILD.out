@@ -4,5 +4,8 @@ ts_library(
     name = "lib",
     srcs = ["app.ts"],
     visibility = ["//visibility:public"],
-    deps = ["//:node_modules/lodash"],
+    deps = [
+        "//:node_modules/lodash",
+        "//:node_modules/singular-sdk",
+    ],
 )
