@@ -289,7 +289,7 @@ ts_library(
 )
 ```
 
-Labels under `@types/<name>` infer `<name>`; otherwise the target/package basename is used.
+Labels under `@types/<name>` infer `<name>`; local non-npm labels fall back to their target/package basename. Scoped npm package labels that match `ts_npm_link_pattern`, such as `//:node_modules/@cloudflare/workers-types` with the default pattern, are added as deps only; Gazelle does not invent an unscoped `tsconfig_types` entry for them, so use a checked-in `/// <reference types="..." />` file or explicit macro config when the package needs one.
 
 The local type package itself can be a normal generated `.d.ts`-only target:
 

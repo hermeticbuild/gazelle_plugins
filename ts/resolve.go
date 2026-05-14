@@ -174,7 +174,7 @@ func resolveGlobalsToDeps(globals []GlobalReference, cfg *tsConfig) resolvedDeps
 		}
 		seen[dep] = true
 		result.external = append(result.external, dep)
-		if typ := tsconfigTypeForGlobalDepLabel(dep); typ != "" {
+		if typ := tsconfigTypeForGlobalDepLabel(dep, cfg); typ != "" {
 			result.tsconfigTypes = append(result.tsconfigTypes, typ)
 		}
 	}
@@ -459,9 +459,14 @@ func tsconfigTypePackageForDepLabel(dep string) string {
 	return ""
 }
 
-func tsconfigTypeForGlobalDepLabel(dep string) string {
+func tsconfigTypeForGlobalDepLabel(dep string, cfg *tsConfig) string {
 	if typ := tsconfigTypeFromTypesPath(dep); typ != "" {
 		return typ
+	}
+	// Scoped npm packages need their full package name (or a reference file),
+	// so deriving just the target basename would produce invalid type names.
+	if pkg, ok := npmPackageFromLabel(cfg, dep); ok && strings.HasPrefix(pkg, "@") {
+		return ""
 	}
 	name := dep
 	if idx := strings.LastIndex(name, ":"); idx >= 0 {
@@ -471,6 +476,23 @@ func tsconfigTypeForGlobalDepLabel(dep string) string {
 		name = name[idx+1:]
 	}
 	return name
+}
+
+func npmPackageFromLabel(cfg *tsConfig, dep string) (string, bool) {
+	pattern := defaultNpmLinkPattern
+	if cfg != nil && cfg.npmLinkPattern != "" {
+		pattern = cfg.npmLinkPattern
+	}
+	parts := strings.Split(pattern, "{pkg}")
+	if len(parts) != 2 {
+		return "", false
+	}
+	prefix, suffix := parts[0], parts[1]
+	if !strings.HasPrefix(dep, prefix) || !strings.HasSuffix(dep, suffix) {
+		return "", false
+	}
+	pkg := strings.TrimSuffix(strings.TrimPrefix(dep, prefix), suffix)
+	return pkg, pkg != ""
 }
 
 func tsconfigTypeFromTypesPath(path string) string {

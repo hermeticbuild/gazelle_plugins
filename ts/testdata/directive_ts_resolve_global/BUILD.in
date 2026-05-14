@@ -2,3 +2,6 @@
 # gazelle:ts_resolve_global chrome //:node_modules/@types/chrome
 # gazelle:ts_resolve_global import.meta.env //app/frontend/@types/import-meta-env
 # gazelle:ts_resolve_global appEnv //app/frontend/@types/app-env
+# gazelle:ts_resolve_global R2Bucket //:node_modules/@cloudflare/workers-types
+# gazelle:ts_resolve_global ExecutionContext //:node_modules/@cloudflare/workers-types
+# gazelle:ts_resolve_global ExportedHandler //:node_modules/@cloudflare/workers-types
