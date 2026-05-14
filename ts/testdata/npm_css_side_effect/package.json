@@ -1,0 +1,6 @@
+{
+  "name": "npm_css_side_effect",
+  "dependencies": {
+    "mapbox-gl": "3.0.0"
+  }
+}
