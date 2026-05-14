@@ -16,6 +16,7 @@ ts_library(
     name = "lib",
     srcs = ["app.ts"],
     tsconfig_types = [
+        "@cloudflare/workers-types",
         "app-env",
         "bar",
         "chrome",
