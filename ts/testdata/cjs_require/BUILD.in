@@ -1,0 +1,1 @@
+load("@gazelle_ts//ts:defs.bzl", "ts_library")

@@ -281,8 +281,9 @@ The plugin does not take a transitive dependency on `aspect_rules_ts` or
 ## Import Resolution
 
 The Rust extractor parses TypeScript static imports, `import type`, inline
-`import("pkg").Type`, dynamic imports, side-effect imports, and re-exports.
-The resolver then checks each import in this order:
+`import("pkg").Type`, dynamic imports, side-effect imports, re-exports, and
+static CommonJS `require("pkg")` calls. The resolver then checks each import in
+this order:
 
 | Import shape | Example | Result |
 |---|---|---|
@@ -295,11 +296,14 @@ The resolver then checks each import in this order:
 | Bare npm package | `react`, `lodash/fp` | Package label from `ts_npm_link_pattern`; paired `@types/<pkg>` is also added when present. |
 | Scoped npm package | `@mui/material`, `@tanstack/react-query/devtools` | Scoped package label from `ts_npm_link_pattern`; paired DefinitelyTyped package uses `@types/scope__name` when present. |
 | Type-only fallback | `import type { Foo } from "lodash"` when only `@types/lodash` is in deps | The `@types/lodash` package label. |
+| CommonJS require | `const x = require("react")`, `require("reflect-metadata")` | Same as an import. Only unshadowed string-literal `require(...)` calls are extracted. |
 | Global reference | `R2Bucket` with `ts_resolve_global` | Configured provider label plus inferred `tsconfig_types`. |
 
 Intentionally unsupported or skipped:
 
-- CommonJS `require(...)` calls are not parsed.
+- Non-literal CommonJS calls such as `require(name)`, template-string
+  `require(...)`, shadowed local `require` functions, and `require.resolve(...)`
+  are ignored.
 - `tsconfig.json` `paths` mappings are not read. Use `package.json` `imports`
   or Gazelle `resolve` / `resolve_regexp` directives.
 - Relative CSS and asset imports are skipped as source deps. Add runtime assets

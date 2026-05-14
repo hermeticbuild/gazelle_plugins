@@ -1,0 +1,13 @@
+{
+  "name": "cjs_require",
+  "dependencies": {
+    "@scope/pkg": "1.0.0",
+    "ignored": "1.0.0",
+    "lodash": "4.17.21",
+    "react": "18.0.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "4.17.0",
+    "@types/node": "20.0.0"
+  }
+}
