@@ -1,5 +1,7 @@
 # gazelle:ts_resolve_global process //:node_modules/@types/node
 # gazelle:ts_resolve_global chrome //:node_modules/@types/chrome
+# gazelle:ts_resolve_global google //:node_modules/@types/google
+# gazelle:ts_resolve_global google.picker //:node_modules/@types/google.picker
 # gazelle:ts_resolve_global import.meta.env //app/frontend/@types/import-meta-env
 # gazelle:ts_resolve_global appEnv //app/frontend/@types/app-env
 # gazelle:ts_resolve_global R2Bucket //:node_modules/@cloudflare/workers-types

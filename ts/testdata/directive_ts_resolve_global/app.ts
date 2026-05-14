@@ -3,6 +3,8 @@ chrome.runtime.sendMessage("hello");
 import.meta.env.VITE_FOO;
 appEnv.VITE_FOO;
 
+export type PickedFile = google.picker.DocumentObject;
+
 export interface Env {
   BUCKET: R2Bucket;
 }

@@ -95,16 +95,9 @@ impl ImportVisitor {
         }
     }
 
-    fn add_static_member_globals(&mut self, expr: &StaticMemberExpression<'_>) {
-        let Some(parts) = expression_chain(&expr.object) else {
-            return;
-        };
+    fn add_global_chain<'b>(&mut self, parts: impl IntoIterator<Item = &'b str>) {
         let mut chain = String::new();
-        for (idx, part) in parts
-            .iter()
-            .chain([expr.property.name.as_str()].iter())
-            .enumerate()
-        {
+        for (idx, part) in parts.into_iter().enumerate() {
             if idx > 0 {
                 chain.push('.');
             }
@@ -113,6 +106,19 @@ impl ImportVisitor {
                 self.add_global(&chain);
             }
         }
+    }
+
+    fn add_static_member_globals(&mut self, expr: &StaticMemberExpression<'_>) -> bool {
+        let Some(parts) = expression_chain(&expr.object) else {
+            return false;
+        };
+        self.add_global_chain(
+            parts
+                .iter()
+                .chain([expr.property.name.as_str()].iter())
+                .copied(),
+        );
+        true
     }
 
     fn into_references(self) -> ExtractedReferences {
@@ -136,6 +142,20 @@ fn expression_chain<'a>(expr: &'a Expression<'a>) -> Option<Vec<&'a str>> {
         }
         _ => None,
     }
+}
+
+fn type_name_chain<'a>(name: &'a TSTypeName<'a>) -> Option<Vec<&'a str>> {
+    match name {
+        TSTypeName::IdentifierReference(ident) => Some(vec![ident.name.as_str()]),
+        TSTypeName::QualifiedName(qualified) => qualified_name_chain(qualified),
+        TSTypeName::ThisExpression(_) => None,
+    }
+}
+
+fn qualified_name_chain<'a>(name: &'a TSQualifiedName<'a>) -> Option<Vec<&'a str>> {
+    let mut parts = type_name_chain(&name.left)?;
+    parts.push(name.right.name.as_str());
+    Some(parts)
 }
 
 impl<'a> Visit<'a> for ImportVisitor {
@@ -179,8 +199,18 @@ impl<'a> Visit<'a> for ImportVisitor {
     }
 
     fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'a>) {
-        self.add_static_member_globals(expr);
+        if self.add_static_member_globals(expr) {
+            return;
+        }
         walk::walk_static_member_expression(self, expr);
+    }
+
+    fn visit_ts_qualified_name(&mut self, name: &TSQualifiedName<'a>) {
+        let Some(parts) = qualified_name_chain(name) else {
+            walk::walk_ts_qualified_name(self, name);
+            return;
+        };
+        self.add_global_chain(parts);
     }
 }
 
@@ -260,15 +290,25 @@ mod tests {
             vec![
                 "process.env",
                 "process.env.NODE_ENV",
-                "process",
                 "chrome.runtime",
                 "chrome.runtime.sendMessage",
-                "chrome",
                 "google.accounts",
                 "google.accounts.id",
                 "google.accounts.id.initialize",
-                "google",
+                "process",
             ]
+        );
+    }
+
+    #[test]
+    fn qualified_type_names_are_extracted_as_global_chains() {
+        let refs = extract_references(
+            "test.ts",
+            "export type PickedFile = google.picker.DocumentObject;",
+        );
+        assert_eq!(
+            refs.globals,
+            vec!["google.picker", "google.picker.DocumentObject"]
         );
     }
 
