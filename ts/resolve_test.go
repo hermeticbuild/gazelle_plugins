@@ -106,16 +106,26 @@ func TestTsconfigTypePackageForDepLabel(t *testing.T) {
 }
 
 func TestTsconfigTypeForGlobalDepLabel(t *testing.T) {
-	cases := map[string]string{
-		"//:node_modules/@types/node":   "node",
-		"//:node_modules/@types/chrome": "chrome",
-		"@npm//@types/google.accounts":  "google.accounts",
-		"//app/frontend/@types/app-env": "app-env",
-		"//types:custom-global-env":     "custom-global-env",
+	defaultCfg := newTsConfig()
+	customCfg := newTsConfig()
+	customCfg.npmLinkPattern = "//:my_npm/{pkg}"
+
+	cases := []struct {
+		dep  string
+		cfg  *tsConfig
+		want string
+	}{
+		{dep: "//:node_modules/@types/node", want: "node"},
+		{dep: "//:node_modules/@types/chrome", want: "chrome"},
+		{dep: "@npm//@types/google.accounts", want: "google.accounts"},
+		{dep: "//app/frontend/@types/app-env", want: "app-env"},
+		{dep: "//types:custom-global-env", want: "custom-global-env"},
+		{dep: "//:node_modules/@cloudflare/workers-types", cfg: defaultCfg, want: ""},
+		{dep: "//:my_npm/@cloudflare/workers-types", cfg: customCfg, want: ""},
 	}
-	for dep, want := range cases {
-		if got := tsconfigTypeForGlobalDepLabel(dep); got != want {
-			t.Errorf("tsconfigTypeForGlobalDepLabel(%q) = %q, want %q", dep, got, want)
+	for _, c := range cases {
+		if got := tsconfigTypeForGlobalDepLabel(c.dep, c.cfg); got != c.want {
+			t.Errorf("tsconfigTypeForGlobalDepLabel(%q) = %q, want %q", c.dep, got, c.want)
 		}
 	}
 }
@@ -145,6 +155,7 @@ func TestResolveGlobalsToDeps(t *testing.T) {
 	cfg.globalResolves["chrome"] = "//:node_modules/@types/chrome"
 	cfg.globalResolves["google.accounts"] = "//:node_modules/@types/google.accounts"
 	cfg.globalResolves["import.meta.env"] = "//app/frontend/@types/app-env"
+	cfg.globalResolves["R2Bucket"] = "//:node_modules/@cloudflare/workers-types"
 
 	got := resolveGlobalsToDeps(
 		[]GlobalReference{
@@ -153,11 +164,12 @@ func TestResolveGlobalsToDeps(t *testing.T) {
 			{Name: "chrome"},
 			{Name: "google.accounts"},
 			{Name: "import.meta.env"},
+			{Name: "R2Bucket"},
 		},
 		cfg,
 	)
 
-	if want := []string{"//:node_modules/@types/chrome", "//:node_modules/@types/google.accounts", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
+	if want := []string{"//:node_modules/@cloudflare/workers-types", "//:node_modules/@types/chrome", "//:node_modules/@types/google.accounts", "//:node_modules/@types/node", "//app/frontend/@types/app-env"}; !reflect.DeepEqual(got.external, want) {
 		t.Errorf("external = %v, want %v", got.external, want)
 	}
 	if want := []string{"app-env", "chrome", "google.accounts", "node"}; !reflect.DeepEqual(got.tsconfigTypes, want) {
@@ -265,6 +277,7 @@ func TestResolve_TsLibraryUsesResolvedGlobals(t *testing.T) {
 	cfg.globalResolves["google.accounts"] = "//:node_modules/@types/google.accounts"
 	cfg.globalResolves["import.meta.env"] = "//app/frontend/@types/import-meta-env"
 	cfg.globalResolves["appEnv"] = "//app/frontend/@types/app-env"
+	cfg.globalResolves["R2Bucket"] = "//:node_modules/@cloudflare/workers-types"
 	c := config.New()
 	c.Exts[languageName] = cfg
 	resolveConfigurer := &gazelleresolve.Configurer{}
@@ -288,12 +301,14 @@ func TestResolve_TsLibraryUsesResolvedGlobals(t *testing.T) {
 				{Name: "google.accounts"},
 				{Name: "import.meta.env"},
 				{Name: "appEnv"},
+				{Name: "R2Bucket"},
 			},
 		},
 		label.Label{Pkg: "apps/web", Name: "web"},
 	)
 
 	wantDeps := []string{
+		"//:node_modules/@cloudflare/workers-types",
 		"//:node_modules/@types/chrome",
 		"//:node_modules/@types/google.accounts",
 		"//:node_modules/@types/node",
